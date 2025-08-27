@@ -19,7 +19,7 @@ namespace KPI.Infrastructure.Persistence
         public DbSet<KPIItem> KpiItems { get; set; }
         public DbSet<KPITemplate> KpiTemplates { get; set; }
         public DbSet<KpiScore> KpiScores { get; set; }
-        public DbSet<KpiViolation> kpiViolations { get; set; }
+        public DbSet<KpiViolation> KpiViolations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
