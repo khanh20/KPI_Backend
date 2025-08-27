@@ -98,9 +98,20 @@ namespace KPI.Auth.API
                         ),
                     };
                 });
+            // Add CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(
+                    "AllowAllOrigins",
+                    policy =>
+                    {
+                        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+                    }
+                );
+            });
 
             builder.Services.AddAuthorization();
-
+     
 
             var app = builder.Build();
 
@@ -111,7 +122,7 @@ namespace KPI.Auth.API
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
+            app.UseCors("AllowAllOrigins");
             app.UseHttpsRedirection();
             app.UseRouting();
             app.UseAuthentication();

@@ -8,8 +8,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\KPI.Shared.ApplicationService\KPI.Shared.ApplicationService.csproj" />
-    <ProjectReference Include="..\KPI.Dtos\KPI.Dtos.csproj" />
+    <ProjectReference Include="..\KPI.Domain\KPI.Domain.csproj" />
     <ProjectReference Include="..\KPI.Infrastructure\KPI.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="KPIModule\Abstract\" />
+    <Folder Include="KPIModule\Dtos\" />
+    <Folder Include="KPIModule\Implements\" />
   </ItemGroup>
 
 </Project>
