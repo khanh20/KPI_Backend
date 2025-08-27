@@ -18,6 +18,8 @@ namespace KPI.Infrastructure.Persistence
         public DbSet<KPIAssignment> KpiAssignments { get; set; }
         public DbSet<KPIItem> KpiItems { get; set; }
         public DbSet<KPITemplate> KpiTemplates { get; set; }
+        public DbSet<KpiScore> KpiScores { get; set; }
+        public DbSet<KpiViolation> kpiViolations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
