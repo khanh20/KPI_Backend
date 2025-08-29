@@ -11,7 +11,7 @@ namespace KPI.Auth.Infrastructure.Persistence
         {
             var optionsBuilder = new DbContextOptionsBuilder<AuthDbContext>();
             // Hardcode tạm connection string
-            optionsBuilder.UseSqlServer("Data Source=ADMIN-PC\\MSSQLSERVER_1;Initial Catalog=KPI;Integrated Security=True;Trust Server Certificate=True");
+            optionsBuilder.UseSqlServer("Server=THANHMOI\\SQLEXPRESS;Database=KPIAuthDb;Trusted_Connection=True;Integrated Security=True;Pooling=False;Encrypt=True;Trust Server Certificate=True");
 
             return new AuthDbContext(optionsBuilder.Options);
         }
