@@ -15,8 +15,8 @@ namespace KPI.Domain
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public int UserId { get; set; }
-        [MaxLength(100)]
-        public string ViolationType { get; set; }
+        [Required, MaxLength(100)]
+        public string ViolationType { get; set; } = null!;
         public int ViolationCount { get; set; }
         public float DeductionScore { get; set; }
         public DateTime ViolationDate { get; set; }

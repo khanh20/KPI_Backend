@@ -21,6 +21,7 @@ namespace KPI.Domain
         public float TotalObjectiveScore { get; set; }
         public float TotalComplianceScore { get; set; }
         public float FinalScore { get; set; }
-        public float Status { get; set; }
+
+        public int Status { get; set; }
     }
 }

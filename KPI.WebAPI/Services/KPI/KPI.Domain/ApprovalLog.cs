@@ -3,22 +3,27 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace KPI.Domain
 {
-    [Table("KpiTemplate")]
-    public class KPITemplate
+    [Table("ApprovalLogs")]
+    public class ApprovalLog
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        [Required, MaxLength(256)]
-        public string TemplateName { get; set; }
+        public int KpiAssignmentId { get; set; }
+
+        public int UserId { get; set; }
+
+        [Required, MaxLength(50)]
+        public string Action { get; set; } = null!;
 
         [MaxLength(1024)]
-        public string Description { get; set; }
+        public string? Comment { get; set; }
+
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

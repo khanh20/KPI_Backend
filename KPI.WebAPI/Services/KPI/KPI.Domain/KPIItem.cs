@@ -14,19 +14,22 @@ namespace KPI.Domain
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        [MaxLength(100)]
+        [MaxLength(256)]
         [Required]
         public string KpiName { get; set; }
-        [MaxLength(100)]
-        [Required]
-        public string KpiType { get; set; }
+        /// <summary>
+        /// Functional / Objective / Compliance
+        /// </summary>
+        [Required, MaxLength(50)]
+        public string KpiType { get; set; } = null!;
+        [MaxLength(512)]
         public string CalculationFormula { get; set; }
         public int  KpiTemplateId { get; set; }
-        public float Weight { get; set; } // trọng số
+        public float Weight { get; set; } 
         public DateTime DeadLine { get; set; }
 
         // Audit
-        public DateTime? CreatedDate { get; set; }
+        public DateTime? CreatedDate { get; set; } = DateTime.Now;
         public int? CreatedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
         public int? ModifiedBy { get; set; }
