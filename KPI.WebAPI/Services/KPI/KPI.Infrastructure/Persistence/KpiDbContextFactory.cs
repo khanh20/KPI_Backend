@@ -14,7 +14,7 @@ namespace KPI.Infrastructure.Persistence
         {
             var optionsBuilder = new DbContextOptionsBuilder<KpiDbContext>();
             // Hardcode tạm connection string
-            optionsBuilder.UseSqlServer("Data Source=ADMIN-PC\\MSSQLSERVER_1;Initial Catalog=KPI;Integrated Security=True;Trust Server Certificate=True");
+            optionsBuilder.UseSqlServer("Data Source=ADMIN-PC\\MSSQLSERVER_1;Initial Catalog=KPI_Core;Integrated Security=True;Trust Server Certificate=True");
 
             return new KpiDbContext(optionsBuilder.Options);
         }

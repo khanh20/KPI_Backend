@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace KPI.Domain
 {
     [Table("KpiViolation")]
-    public class KpiViolation
+    public class KPIViolation
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

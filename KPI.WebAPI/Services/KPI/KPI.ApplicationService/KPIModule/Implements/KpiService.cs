@@ -77,8 +77,9 @@ namespace KPI.ApplicationService.KpiModule.Implements
         public async Task<List<KpiItemDto>> GetAllItemsAsync()
         {
             return await _context.KpiItems
-                .Select(i => new KpiItemDto
-                {
+                   .Where(i => !i.Deleted)  // lấy delete = false
+                   .Select(i => new KpiItemDto
+        {
                     Id = i.Id,
                     KpiName = i.KpiName,
                     KpiType = i.KpiType,
@@ -158,6 +159,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 KpiType = item.KpiType,
                 Weight = item.Weight,
                 KpiTemplateId = item.KpiTemplateId,
+                CalculationFormula = item.CalculationFormula,
                 DeadLine = item.DeadLine
             };
         }

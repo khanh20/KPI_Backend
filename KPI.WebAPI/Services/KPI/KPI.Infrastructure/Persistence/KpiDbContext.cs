@@ -16,13 +16,11 @@ namespace KPI.Infrastructure.Persistence
         }
 
         public DbSet<Unit> Units { get; set; }
-        public DbSet<KPITemplate> KpiTemplates { get; set; }
-        public DbSet<KPIItem> KpiItems { get; set; }
         public DbSet<KPIAssignment> KpiAssignments { get; set; }
         public DbSet<KPIItem> KpiItems { get; set; }
         public DbSet<KPITemplate> KpiTemplates { get; set; }
-        public DbSet<KpiScore> KpiScores { get; set; }
-        public DbSet<KpiViolation> KpiViolations { get; set; }
+        public DbSet<KPIScore> KpiScores { get; set; }
+        public DbSet<KPIViolation> KpiViolations { get; set; }
         public DbSet<ApprovalLog> ApprovalLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -53,7 +51,7 @@ namespace KPI.Infrastructure.Persistence
                 .HasDefaultValueSql("GETDATE()");
 
             // KpiViolation.ViolationDate mặc định = GETDATE()
-            modelBuilder.Entity<KpiViolation>()
+            modelBuilder.Entity<KPIViolation>()
                 .Property(v => v.ViolationDate)
                 .HasDefaultValueSql("GETDATE()");
         }
