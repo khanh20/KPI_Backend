@@ -48,6 +48,7 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<List<KpiAssignmentDto>> GetAssignmentByUserAsync(int userId);
         Task<List<KpiAssignmentDto>> GetAssignmentByUnitAsync(int unitId);
         Task<KpiAssignmentDto?> UpdateAssignmentAsync(int id, UpdateKpiAssignmentDto dto, int modifiedBy);
+        Task<List<KpiAssignmentDto>> GetAllAssigment();
         #endregion
 
         #region Approval

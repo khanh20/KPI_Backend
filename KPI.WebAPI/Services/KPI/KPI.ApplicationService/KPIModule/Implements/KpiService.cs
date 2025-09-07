@@ -363,10 +363,30 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 Year = entity.Year
             };
         }
-            #endregion
+
+        public async Task<List<KpiAssignmentDto>> GetAllAssigment()
+        {
+            return await _context.KpiAssignments
+                .Select(a => new KpiAssignmentDto
+                {
+                    Id = a.Id,
+                    UserId = a.UserId,
+                    UnitId = a.UnitId,
+                    KpiItemId = a.KpiItemId,
+                    TargetValue = a.TargetValue,
+                    ContributionWeight = a.ContributionWeight,
+                    ActualResults = a.ActualResults,
+                    ComponentScore = a.ComponentScore,
+                    Status = a.Status,
+                    Year = a.Year
+                })
+                .ToListAsync();
+        }
+
+        #endregion
 
         #region Unit
-            public async Task<List<UnitDto>> GetAllUnitAsync()
+        public async Task<List<UnitDto>> GetAllUnitAsync()
         {
             return await _context.Units
                 .Select(u => new UnitDto

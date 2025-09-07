@@ -20,5 +20,6 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Abstract
         public string GenerateJwtToken(User user);
         Task<IEnumerable<UserRoleDto>> GetAllUserRole();
         Task<UserRoleDto?> GetUserRoleById(int userId);
+        Task<IEnumerable<User>> GetUsersByUnitId(int unitId);
     }
 }

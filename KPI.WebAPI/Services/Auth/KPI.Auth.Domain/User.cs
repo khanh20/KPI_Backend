@@ -14,6 +14,7 @@ namespace KPI.Auth.Domain
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
+        public int? UnitId { get; set; }
 
         [MaxLength(100)]
         [Required]

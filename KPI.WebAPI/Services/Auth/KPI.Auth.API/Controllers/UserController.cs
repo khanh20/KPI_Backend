@@ -127,6 +127,13 @@ namespace KPI.Auth.API.Controllers
                
            
         }
+        [HttpGet("users/by-unit/{unitId}")]
+        public async Task<IActionResult> GetUsersByUnitId(int unitId)
+        {
+            var users = await _userService.GetUsersByUnitId(unitId);
+            return Ok(users);
+        }
+
 
 
     }

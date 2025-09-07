@@ -49,6 +49,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                 UserName = dto.UserName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 RoleId = dto.RoleId,
+                UnitId = dto.UnitId,
                 Email = dto.Email,
                 Address = dto.Address,
                 PhoneNumber = dto.PhoneNumber,
@@ -68,6 +69,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                 Email = user.Email,
                 Address = user.Address,
                 PhoneNumber = user.PhoneNumber,
+                UnitId =user.UnitId, 
                 RoleId = user.RoleId,
                 Position = user.Position
             };
@@ -94,6 +96,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                 FullName = user.FirstName + " " + user.LastName,
                 UserName = user.UserName,
                 RoleId = user.RoleId,
+                UnitId=user.UnitId,
                 Position = user.Position
             };
         }
@@ -115,6 +118,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                     FullName = u.FirstName + " " + u.LastName,
                     UserName = u.UserName,
                     RoleId = u.RoleId,
+                    UnitId = u.UnitId,
                     Position = u.Position
                 }).ToListAsync();
         }
@@ -217,6 +221,13 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
 
             return result;
         }
+        public async Task<IEnumerable<User>> GetUsersByUnitId(int unitId)
+        {
+            return await _context.Users
+                                 .Where(u => u.UnitId == unitId)
+                                 .ToListAsync();
+        }
+
 
 
     }
