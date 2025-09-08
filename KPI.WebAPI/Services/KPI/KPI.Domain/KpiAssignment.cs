@@ -15,7 +15,7 @@ namespace KPI.Domain
         public int UserId { get; set; }
         public int UnitId { get; set; }
         public int KpiItemId { get; set; }
-        public float TargetValue { get; set; }  
+        public float TargetValue { get; set; }
         public float ContributionWeight { get; set; } // tỷ lệ đóng góp
         public float ActualResults { get; set; } // kết quả thực tế
         public float ComponentScore { get; set; } // điểm thành phần
