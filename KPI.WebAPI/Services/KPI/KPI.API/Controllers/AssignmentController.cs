@@ -46,5 +46,18 @@ namespace KPI.API.Controllers
             var assignments = await _assignmentService.GetAssignmentByUnitAsync(unitId);
             return Ok(assignments);
         }
+        [HttpGet("getAllAssigement")]
+        public async Task<IActionResult> GetAllAssigement()
+        {
+            try
+            {
+                var assignments = await _assignmentService.GetAllAssigment();
+                return Ok(assignments);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 }

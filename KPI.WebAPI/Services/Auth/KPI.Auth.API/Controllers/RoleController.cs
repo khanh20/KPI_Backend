@@ -146,8 +146,8 @@ namespace KPI.Auth.API.Controllers
         /// <returns></returns> 
         /// 
         
-        [HttpGet("role-permission")]
-        public async Task<IActionResult> GetRolePermission(int roleId, [FromQuery] string roleName)
+        [HttpGet("role-permission/{roleId}")]
+        public async Task<IActionResult> GetRolePermission(int roleId )
         {
             try
             {

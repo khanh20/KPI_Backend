@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\KPI.Shared.Constant\KPI.Shared.Constant.csproj" />
+  </ItemGroup>
+
 </Project>

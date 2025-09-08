@@ -101,7 +101,9 @@ namespace KPI.Infrastructure.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("1");
 
                     b.Property<float>("TargetValue")
                         .HasColumnType("real");
@@ -182,30 +184,7 @@ namespace KPI.Infrastructure.Migrations
                     b.ToTable("KpiItem");
                 });
 
-            modelBuilder.Entity("KPI.Domain.KPITemplate", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
-                    b.Property<string>("TemplateName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("KpiTemplate");
-                });
-
-            modelBuilder.Entity("KPI.Domain.KpiScore", b =>
+            modelBuilder.Entity("KPI.Domain.KPIScore", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -242,7 +221,30 @@ namespace KPI.Infrastructure.Migrations
                     b.ToTable("KpiScore");
                 });
 
-            modelBuilder.Entity("KPI.Domain.KpiViolation", b =>
+            modelBuilder.Entity("KPI.Domain.KPITemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("KpiTemplate");
+                });
+
+            modelBuilder.Entity("KPI.Domain.KPIViolation", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

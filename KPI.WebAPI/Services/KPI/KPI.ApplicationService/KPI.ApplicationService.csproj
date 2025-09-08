@@ -11,4 +11,10 @@
     <ProjectReference Include="..\KPI.Infrastructure\KPI.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="KPIModule\Abstract\" />
+    <Folder Include="KPIModule\Dtos\" />
+    <Folder Include="KPIModule\Implements\" />
+  </ItemGroup>
+
 </Project>

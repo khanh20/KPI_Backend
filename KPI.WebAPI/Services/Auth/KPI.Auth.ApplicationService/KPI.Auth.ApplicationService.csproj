@@ -10,7 +10,6 @@
     <ProjectReference Include="..\..\..\Shared\KPI.Shared.ApplicationService\KPI.Shared.ApplicationService.csproj" />
     <ProjectReference Include="..\KPI.Auth.Infrastructure\KPI.Auth.Infrastructure.csproj" />
     <ProjectReference Include="..\KPI.Auth.Domain\KPI.Auth.Domain.csproj" />
-    <ProjectReference Include="..\KPI.Auth.Dtos\KPI.Auth.Dtos.csproj" />
   </ItemGroup>
 
   <ItemGroup>
