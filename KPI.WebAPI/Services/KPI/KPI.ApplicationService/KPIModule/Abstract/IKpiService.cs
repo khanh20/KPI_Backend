@@ -19,10 +19,7 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<KpiTemplateDto?> GetByIdAsync(int id);
         Task<KpiTemplateDto> CreateAsync(CreateKpiTemplateDto dto);
 
-
-
-
-
+        Task<bool> RequestDeleteTemplateAsync(int id, int userId, string? comment = null);
         #endregion
 
         #region KPIITem
@@ -36,7 +33,7 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         //Cập nhật thông tin KPI item theo Id.
         Task<KpiItemDto> UpdateItemAsync(int id, UpdateKpiItemDto dto, int userId);
         //Đánh dấu xóa mềm KPI item (Deleted = true).
-        Task<bool> DeleteItemAsync(int id, int userId);
+        Task<bool> RequestDeleteItemAsync(int id, int userId, string? comment = null);
         //Lấy danh sách KPI items mà chính user đã tạo.
         Task<List<KpiItemDto>> GetItemsByCreatorAsync(int userId);
 
@@ -54,6 +51,8 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         #region Approval
         Task<ApprovalLogDto> ApproveAsync(ApproveKpiAssignmentDto dto, int approverId);
         Task<List<ApprovalLogDto>> GetLogsByAssignmentIdAsync(int assignmentId);
+
+        Task<bool> ApproveDeleteAsync(int logId, int approverId, bool approve, string? comment = null);
         #endregion
 
         #region Unit

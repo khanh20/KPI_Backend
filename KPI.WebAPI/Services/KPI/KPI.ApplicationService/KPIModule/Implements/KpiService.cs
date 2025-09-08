@@ -65,6 +65,28 @@ namespace KPI.ApplicationService.KpiModule.Implements
         }
 
 
+        // Request Delete Template
+        public async Task<bool> RequestDeleteTemplateAsync(int id, int userId, string? comment = null)
+        {
+            var template = await _context.KpiTemplates.FindAsync(id);
+            if (template == null) return false;
+
+            // Tạo log chờ phê duyệt
+            var log = new ApprovalLog
+            {
+                TargetType = "Template",
+                TargetId = id,
+                UserId = userId,
+                Action = "RequestDelete",
+                Comment = comment,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _context.ApprovalLogs.Add(log);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
 
 
 
@@ -164,15 +186,22 @@ namespace KPI.ApplicationService.KpiModule.Implements
             };
         }
 
-        public async Task<bool> DeleteItemAsync(int id, int userId)
+        public async Task<bool> RequestDeleteItemAsync(int id, int userId, string? comment = null)
         {
             var item = await _context.KpiItems.FindAsync(id);
             if (item == null) return false;
 
-            item.Deleted = true;
-            item.DeletedBy = userId;
-            item.DeletedDate = DateTime.UtcNow;
+            var log = new ApprovalLog
+            {
+                TargetType = "Item",
+                TargetId = id,
+                UserId = userId,
+                Action = "RequestDelete",
+                Comment = comment,
+                Timestamp = DateTime.UtcNow
+            };
 
+            _context.ApprovalLogs.Add(log);
             await _context.SaveChangesAsync();
             return true;
         }
@@ -195,6 +224,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
         #endregion
 
         #region ApprovalLog
+        //Chua fix
         public async Task<ApprovalLogDto> ApproveAsync(ApproveKpiAssignmentDto dto, int approverId)
         {
             var assignment = await _context.KpiAssignments.FindAsync(dto.AssignmentId);
@@ -208,7 +238,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
             // Log lại
             var log = new ApprovalLog
             {
-                KpiAssignmentId = assignment.Id,
+                TargetId = assignment.Id,
                 UserId = approverId,
                 Action = dto.Action,
                 Comment = dto.Comment,
@@ -221,7 +251,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return new ApprovalLogDto
             {
                 Id = log.Id,
-                KpiAssignmentId = log.KpiAssignmentId,
+                KpiAssignmentId = log.TargetId,
                 UserId = log.UserId,
                 Action = log.Action,
                 Comment = log.Comment,
@@ -229,20 +259,64 @@ namespace KPI.ApplicationService.KpiModule.Implements
             };
         }
 
+        //Chua fix
         public async Task<List<ApprovalLogDto>> GetLogsByAssignmentIdAsync(int assignmentId)
         {
             return await _context.ApprovalLogs
-                .Where(l => l.KpiAssignmentId == assignmentId)
+                .Where(l => l.TargetId == assignmentId)
                 .Select(l => new ApprovalLogDto
                 {
                     Id = l.Id,
-                    KpiAssignmentId = l.KpiAssignmentId,
+                    KpiAssignmentId = l.TargetId,
                     UserId = l.UserId,
                     Action = l.Action,
                     Comment = l.Comment,
                     Timestamp = l.Timestamp
                 }).ToListAsync();
         }
+
+        //AFter Delete
+        public async Task<bool> ApproveDeleteAsync(int logId, int approverId, bool approve, string? comment = null)
+        {
+            var log = await _context.ApprovalLogs.FindAsync(logId);
+            if (log == null || log.Action != "RequestDelete") return false;
+
+            if (approve)
+            {
+                if (log.TargetType == "Template")
+                {
+                    var template = await _context.KpiTemplates.FindAsync(log.TargetId);
+                    if (template != null)
+                    {
+                        _context.KpiTemplates.Remove(template);
+                    }
+                }
+                else if (log.TargetType == "Item")
+                {
+                    var item = await _context.KpiItems.FindAsync(log.TargetId);
+                    if (item != null)
+                    {
+                        item.Deleted = true;
+                        item.DeletedBy = approverId;
+                        item.DeletedDate = DateTime.UtcNow;
+                    }
+                }
+
+                log.Action = "ApproveDelete";
+            }
+            else
+            {
+                log.Action = "RejectDelete";
+            }
+
+            log.UserId = approverId;
+            log.Comment = comment;
+            log.Timestamp = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         #endregion
 
 
