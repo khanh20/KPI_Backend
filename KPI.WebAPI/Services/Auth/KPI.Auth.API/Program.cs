@@ -43,6 +43,16 @@ namespace KPI.Auth.API
             });
             //builder.ConfigureService(typeof(Program).Namespace);
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
+            });
+
             builder.Services.AddSwaggerGen(options =>
             {
                 options.AddSecurityDefinition(
@@ -103,7 +113,7 @@ namespace KPI.Auth.API
 
 
             var app = builder.Build();
-
+            app.UseCors("AllowAll");
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
