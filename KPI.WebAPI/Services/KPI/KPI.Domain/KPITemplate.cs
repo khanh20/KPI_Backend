@@ -20,5 +20,15 @@ namespace KPI.Domain
 
         [MaxLength(1024)]
         public string Description { get; set; }
+        public int Year { get; set; } 
+
+        // Audit
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
+        public int? CreatedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedBy { get; set; }
+        public DateTime? DeletedDate { get; set; }
+        public bool Deleted { get; set; }
+        public int? DeletedBy { get; set; }
     }
 }

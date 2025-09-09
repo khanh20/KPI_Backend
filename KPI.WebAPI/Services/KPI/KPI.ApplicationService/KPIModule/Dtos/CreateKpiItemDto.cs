@@ -11,6 +11,8 @@
             public string KpiName { get; set; }
             public string KpiType { get; set; }
             public float Weight { get; set; }
+
+            public float TargetValue { get; set; }
             public DateTime DeadLine { get; set; }
             public int KpiTemplateId { get; set; }
             public string? CalculationFormula { get; set; }        

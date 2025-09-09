@@ -2,6 +2,7 @@
 using KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace KPI.API.Controllers
 {
@@ -17,12 +18,24 @@ namespace KPI.API.Controllers
             _assignmentService = assignmentService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AssignKpi([FromBody] CreateKpiAssignmentDto dto)
+        [HttpPost("assign-item")]
+        public async Task<IActionResult> AssignItem([FromBody] CreateKpiAssignmentDto dto)
         {
             var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
-            var created = await _assignmentService.AssignAsync(dto, userId);
-            return CreatedAtAction(nameof(GetAssignmentById), new { id = created.Id }, created);
+            var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "User";
+
+            var result = await _assignmentService.AssignItemAsync(dto, userId, role);
+            return Ok(result);
+        }
+
+        [HttpPost("assign-template")]
+        public async Task<IActionResult> AssignTemplate([FromBody] AssignTemplateDto dto)
+        {
+            var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
+            var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "User";
+
+            var result = await _assignmentService.AssignTemplateAsync(dto, userId, role);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]

@@ -17,9 +17,13 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         #region KPITemplate
         Task<List<KpiTemplateDto>> GetAllAsync();
         Task<KpiTemplateDto?> GetByIdAsync(int id);
-        Task<KpiTemplateDto> CreateAsync(CreateKpiTemplateDto dto);
+
+        Task<KpiTemplateDto?> UpdateAsync(int id, UpdateKpiTemplateDto dto, int modifiedBy);
+        Task<KpiTemplateDto> CreateAsync(CreateKpiTemplateDto dto, int createdBy);
 
         Task<bool> RequestDeleteTemplateAsync(int id, int userId, string? comment = null);
+
+        Task<bool> DeleteTemplateAsync(int id, int deletedBy);
         #endregion
 
         #region KPIITem
@@ -36,11 +40,14 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<bool> RequestDeleteItemAsync(int id, int userId, string? comment = null);
         //Lấy danh sách KPI items mà chính user đã tạo.
         Task<List<KpiItemDto>> GetItemsByCreatorAsync(int userId);
+        //Lấy Item theo ID Template
+        Task<List<KpiItemDto>> GetItemsByTemplateAsync(int templateId);
 
         #endregion
 
         #region KPIAssignment
-        Task<KpiAssignmentDto> AssignAsync(CreateKpiAssignmentDto dto, int createdBy);
+        Task<KpiAssignmentDto> AssignItemAsync(CreateKpiAssignmentDto dto, int createdBy, string creatorRole);
+        Task<List<KpiAssignmentDto>> AssignTemplateAsync(AssignTemplateDto dto, int createdBy, string creatorRole);
         Task<KpiAssignmentDto?> GetAssignmentByIdAsync(int id);
         Task<List<KpiAssignmentDto>> GetAssignmentByUserAsync(int userId);
         Task<List<KpiAssignmentDto>> GetAssignmentByUnitAsync(int unitId);

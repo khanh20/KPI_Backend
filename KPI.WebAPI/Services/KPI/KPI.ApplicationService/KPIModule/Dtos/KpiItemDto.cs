@@ -12,6 +12,8 @@ namespace KPI.ApplicationService.KPIModule.Dtos
         public string KpiName { get; set; }
         public string KpiType { get; set; }
         public float Weight { get; set; }
+
+        public float TargetValue { get; set; }
         public string? CalculationFormula { get; set; }
         public int KpiTemplateId { get; set; }
         public DateTime DeadLine { get; set; }

@@ -3,6 +3,7 @@ using KPI.ApplicationService.KPIModule.Dtos;
 using KPI.ApplicationService.KPIModule.Dtos.UnitDto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace KPI.API.Controllers
 {
@@ -42,8 +43,50 @@ namespace KPI.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var created = await _kpiService.CreateAsync(dto);
+            var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
+
+            var created = await _kpiService.CreateAsync(dto, userId);
             return CreatedAtAction(nameof(GetTemplateById), new { id = created.Id }, created);
+        }
+
+        [HttpPut("templates/{id}")]
+        public async Task<IActionResult> UpdateTemplate(int id, [FromBody] UpdateKpiTemplateDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Lấy userId từ JWT
+            var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
+            // Lấy role từ JWT
+            var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "User";
+
+            // Update template
+            var updated = await _kpiService.UpdateAsync(id, dto, userId);
+            if (updated == null)
+                return NotFound();
+
+            return Ok(updated);
+        }
+
+        [HttpPost("templates/{id}/request-delete")]
+        public async Task<IActionResult> RequestDeleteTemplate(int id, [FromBody] string? comment = null)
+        {
+            var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
+            var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "User";
+
+            // Nếu Admin/Hiệu trưởng thì xóa luôn
+            if (role == "Admin" || role == "Principal")
+            {
+                var deleted = await _kpiService.DeleteTemplateAsync(id, userId);
+                if (!deleted) return NotFound();
+                return Ok(new { message = "Template deleted successfully (auto-approved)" });
+            }
+
+            // User bình thường → tạo request delete
+            var requested = await _kpiService.RequestDeleteTemplateAsync(id, userId, comment);
+            if (!requested) return NotFound();
+
+            return Ok(new { message = "Delete request created, pending approval" });
         }
 
         #endregion
@@ -104,17 +147,13 @@ namespace KPI.API.Controllers
             }
         }
 
-        [HttpDelete("items/{id}")]
-        public async Task<IActionResult> DeleteItem(int id)
+        [HttpGet("templates/{templateId}/items")]
+        public async Task<IActionResult> GetItemsByTemplate(int templateId)
         {
-            var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
-            var result = await _kpiService.DeleteItemAsync(id, userId);
-
-            if (!result)
-                return NotFound();
-
-            return NoContent();
+            var items = await _kpiService.GetItemsByTemplateAsync(templateId);
+            return Ok(items);
         }
+
 
         #endregion
 

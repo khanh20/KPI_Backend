@@ -11,5 +11,7 @@ namespace KPI.ApplicationService.KPIModule.Dtos
         public int Id { get; set; }
         public string TemplateName { get; set; }
         public string Description { get; set; }
+
+        public int Year { get; set; }
     }
 }

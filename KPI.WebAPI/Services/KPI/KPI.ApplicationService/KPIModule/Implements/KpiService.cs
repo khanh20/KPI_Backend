@@ -24,33 +24,42 @@ namespace KPI.ApplicationService.KpiModule.Implements
         public async Task<List<KpiTemplateDto>> GetAllAsync()
         {
             return await _context.KpiTemplates
+                .Where(t => !t.Deleted)
                 .Select(t => new KpiTemplateDto
                 {
                     Id = t.Id,
                     TemplateName = t.TemplateName,
-                    Description = t.Description
+                    Description = t.Description,
+                    Year = t.Year
                 }).ToListAsync();
         }
 
         public async Task<KpiTemplateDto?> GetByIdAsync(int id)
         {
-            var template = await _context.KpiTemplates.FindAsync(id);
+            var template = await _context.KpiTemplates
+            .Where(t => t.Id == id && !t.Deleted)
+            .FirstOrDefaultAsync();
+
             if (template == null) return null;
 
             return new KpiTemplateDto
             {
                 Id = template.Id,
                 TemplateName = template.TemplateName,
-                Description = template.Description
+                Description = template.Description,
+                Year = template.Year
             };
         }
 
-        public async Task<KpiTemplateDto> CreateAsync(CreateKpiTemplateDto dto)
+        public async Task<KpiTemplateDto> CreateAsync(CreateKpiTemplateDto dto, int createdBy)
         {
             var template = new KPITemplate
             {
                 TemplateName = dto.TemplateName,
-                Description = dto.Description
+                Description = dto.Description,
+                Year = dto.Year,
+                CreatedBy = createdBy,
+                CreatedDate = DateTime.UtcNow
             };
 
             _context.KpiTemplates.Add(template);
@@ -60,7 +69,30 @@ namespace KPI.ApplicationService.KpiModule.Implements
             {
                 Id = template.Id,
                 TemplateName = template.TemplateName,
-                Description = template.Description
+                Description = template.Description,
+                Year = template.Year
+            };
+        }
+        //UPdate TEmplate
+        public async Task<KpiTemplateDto?> UpdateAsync(int id, UpdateKpiTemplateDto dto, int modifiedBy)
+        {
+            var template = await _context.KpiTemplates.FindAsync(id);
+            if (template == null || template.Deleted) return null;
+
+            template.TemplateName = dto.TemplateName;
+            template.Description = dto.Description;
+            template.Year = dto.Year;
+            template.ModifiedBy = modifiedBy;
+            template.ModifiedDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return new KpiTemplateDto
+            {
+                Id = template.Id,
+                TemplateName = template.TemplateName,
+                Description = template.Description,
+                Year = template.Year
             };
         }
 
@@ -87,6 +119,20 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return true;
         }
 
+        //Delete Direct ne
+        public async Task<bool> DeleteTemplateAsync(int id, int deletedBy)
+        {
+            var template = await _context.KpiTemplates.FindAsync(id);
+            if (template == null || template.Deleted) return false;
+
+            template.Deleted = true;
+            template.DeletedBy = deletedBy;
+            template.DeletedDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
 
 
 
@@ -106,6 +152,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     KpiName = i.KpiName,
                     KpiType = i.KpiType,
                     Weight = i.Weight,
+                    TargetValue = i.TargetValue,
                     KpiTemplateId = i.KpiTemplateId,
                     CalculationFormula = i.CalculationFormula,
                     DeadLine = i.DeadLine
@@ -123,6 +170,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 KpiName = item.KpiName,
                 KpiType = item.KpiType,
                 Weight = item.Weight,
+                TargetValue = item.TargetValue,
                 KpiTemplateId = item.KpiTemplateId,
                 CalculationFormula = item.CalculationFormula,
                 DeadLine = item.DeadLine
@@ -137,6 +185,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 KpiType = dto.KpiType,
                 Weight = dto.Weight,
                 DeadLine = dto.DeadLine,
+                TargetValue = dto.TargetValue,
                 KpiTemplateId = dto.KpiTemplateId,
                 CalculationFormula = dto.CalculationFormula,
                 CreatedBy = userId,
@@ -152,6 +201,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 KpiName = item.KpiName,
                 KpiType = item.KpiType,
                 Weight = item.Weight,
+                TargetValue= item.TargetValue,
                 CalculationFormula = item.CalculationFormula,
                 KpiTemplateId = item.KpiTemplateId,
                 DeadLine = item.DeadLine
@@ -167,6 +217,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
             item.KpiType = dto.KpiType;
             item.Weight = dto.Weight;
             item.DeadLine = dto.DeadLine;
+            item.TargetValue = dto.TargetValue;
             item.KpiTemplateId = dto.KpiTemplateId;
             item.CalculationFormula = dto.CalculationFormula;
             item.ModifiedBy = userId;
@@ -180,6 +231,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 KpiName = item.KpiName,
                 KpiType = item.KpiType,
                 Weight = item.Weight,
+                TargetValue = item.TargetValue,
                 KpiTemplateId = item.KpiTemplateId,
                 CalculationFormula = item.CalculationFormula,
                 DeadLine = item.DeadLine
@@ -205,6 +257,24 @@ namespace KPI.ApplicationService.KpiModule.Implements
             await _context.SaveChangesAsync();
             return true;
         }
+        //Lấy Item theo Template ID
+        public async Task<List<KpiItemDto>> GetItemsByTemplateAsync(int templateId)
+        {
+            return await _context.KpiItems
+                .Where(i => i.KpiTemplateId == templateId && !i.Deleted)
+                .Select(i => new KpiItemDto
+                {
+                    Id = i.Id,
+                    KpiName = i.KpiName,
+                    KpiType = i.KpiType,
+                    Weight = i.Weight,
+                    TargetValue = i.TargetValue,
+                    CalculationFormula = i.CalculationFormula,
+                    KpiTemplateId = i.KpiTemplateId,
+                    DeadLine = i.DeadLine
+                })
+                .ToListAsync();
+        }
 
         public async Task<List<KpiItemDto>> GetItemsByCreatorAsync(int userId)
         {
@@ -216,6 +286,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     KpiName = i.KpiName,
                     KpiType = i.KpiType,
                     Weight = i.Weight,
+                    TargetValue = i.TargetValue,
                     CalculationFormula = i.CalculationFormula,
                     KpiTemplateId = i.KpiTemplateId,
                     DeadLine = i.DeadLine
@@ -321,35 +392,101 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
 
         #region Assignment
-        public async Task<KpiAssignmentDto> AssignAsync(CreateKpiAssignmentDto dto, int createdBy)
+        // Giao 1 KPIItem
+        public async Task<KpiAssignmentDto> AssignItemAsync(CreateKpiAssignmentDto dto, int createdBy, string creatorRole)
         {
-            var entity = new KPIAssignment
+            var item = await _context.KpiItems.FindAsync(dto.KpiItemId);
+            if (item == null) throw new Exception("KPI Item not found");
+
+            string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+
+            var assignment = new KPIAssignment
             {
                 UserId = dto.UserId,
                 UnitId = dto.UnitId,
                 KpiItemId = dto.KpiItemId,
-                TargetValue = dto.TargetValue,
-                ContributionWeight = dto.ContributionWeight,
+                ContributionWeight = dto.ContributionWeight ?? item.Weight,
                 Year = dto.Year,
-                Status = "Pending",
+                Status = status,
                 CreatedByUserId = createdBy,
                 CreatedDate = DateTime.UtcNow
             };
 
-            _context.KpiAssignments.Add(entity);
+            _context.KpiAssignments.Add(assignment);
+            await _context.SaveChangesAsync();
+
+            _context.ApprovalLogs.Add(new ApprovalLog
+            {
+                TargetType = "KPIItem",
+                TargetId = dto.KpiItemId,
+                UserId = createdBy,
+                Action = "Assigned",
+                Comment = status == "Approved" ? "Assigned and auto-approved by Admin/Principal" : "Assigned and pending approval",
+                Timestamp = DateTime.UtcNow
+            });
             await _context.SaveChangesAsync();
 
             return new KpiAssignmentDto
             {
-                Id = entity.Id,
-                UserId = entity.UserId,
-                UnitId = entity.UnitId,
-                KpiItemId = entity.KpiItemId,
-                TargetValue = entity.TargetValue,
-                ContributionWeight = entity.ContributionWeight,
-                Status = entity.Status,
-                Year = entity.Year
+                Id = assignment.Id,
+                UserId = assignment.UserId,
+                UnitId = assignment.UnitId,
+                KpiItemId = assignment.KpiItemId,
+                ContributionWeight = assignment.ContributionWeight,
+                Status = assignment.Status,
+                Year = assignment.Year
             };
+        }
+
+        // Giao cả Template
+        public async Task<List<KpiAssignmentDto>> AssignTemplateAsync(AssignTemplateDto dto, int createdBy, string creatorRole)
+        {
+            var items = await _context.KpiItems
+                .Where(i => i.KpiTemplateId == dto.TemplateId && !i.Deleted)
+                .ToListAsync();
+
+            if (!items.Any()) throw new Exception("No KPI items in template");
+
+            string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+
+            var assignments = items.Select(item => new KPIAssignment
+            {
+                UserId = dto.UserId,
+                UnitId = dto.UnitId,
+                KpiItemId = item.Id,
+                ContributionWeight = dto.DefaultContributionWeight ?? item.Weight,
+                Year = dto.Year,
+                Status = status,
+                CreatedByUserId = createdBy,
+                CreatedDate = DateTime.UtcNow
+            }).ToList();
+
+            _context.KpiAssignments.AddRange(assignments);
+            await _context.SaveChangesAsync();
+
+            _context.ApprovalLogs.Add(new ApprovalLog
+            {
+                TargetType = "KpiTemplate",
+                TargetId = dto.TemplateId,
+                UserId = createdBy,
+                Action = "Assigned",
+                Comment = status == "Approved"
+                    ? $"Assigned {assignments.Count} KPI items from template and auto-approved"
+                    : $"Assigned {assignments.Count} KPI items from template, pending approval",
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            return assignments.Select(a => new KpiAssignmentDto
+            {
+                Id = a.Id,
+                UserId = a.UserId,
+                UnitId = a.UnitId,
+                KpiItemId = a.KpiItemId,
+                ContributionWeight = a.ContributionWeight,
+                Status = a.Status,
+                Year = a.Year
+            }).ToList();
         }
 
         public async Task<KpiAssignmentDto?> GetAssignmentByIdAsync(int id)
@@ -363,7 +500,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 UserId = entity.UserId,
                 UnitId = entity.UnitId,
                 KpiItemId = entity.KpiItemId,
-                TargetValue = entity.TargetValue,
+                //TargetValue = entity.TargetValue,
                 ContributionWeight = entity.ContributionWeight,
                 ActualResults = entity.ActualResults,
                 ComponentScore = entity.ComponentScore,
@@ -382,7 +519,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     UserId = a.UserId,
                     UnitId = a.UnitId,
                     KpiItemId = a.KpiItemId,
-                    TargetValue = a.TargetValue,
+                    //TargetValue = a.TargetValue,
                     ContributionWeight = a.ContributionWeight,
                     ActualResults = a.ActualResults,
                     ComponentScore = a.ComponentScore,
@@ -401,7 +538,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     UserId = a.UserId,
                     UnitId = a.UnitId,
                     KpiItemId = a.KpiItemId,
-                    TargetValue = a.TargetValue,
+                    //TargetValue = a.TargetValue,
                     ContributionWeight = a.ContributionWeight,
                     ActualResults = a.ActualResults,
                     ComponentScore = a.ComponentScore,
@@ -415,7 +552,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
             var entity = await _context.KpiAssignments.FindAsync(id);
             if (entity == null) return null;
 
-            entity.TargetValue = dto.TargetValue;
+            //entity.TargetValue = dto.TargetValue;
             entity.ContributionWeight = dto.ContributionWeight;
             entity.Status = dto.Status;
             entity.ModifiedBy = modifiedBy;
@@ -429,7 +566,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 UserId = entity.UserId,
                 UnitId = entity.UnitId,
                 KpiItemId = entity.KpiItemId,
-                TargetValue = entity.TargetValue,
+                //TargetValue = entity.TargetValue,
                 ContributionWeight = entity.ContributionWeight,
                 ActualResults = entity.ActualResults,
                 ComponentScore = entity.ComponentScore,
@@ -447,7 +584,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     UserId = a.UserId,
                     UnitId = a.UnitId,
                     KpiItemId = a.KpiItemId,
-                    TargetValue = a.TargetValue,
+                    //TargetValue = a.TargetValue,
                     ContributionWeight = a.ContributionWeight,
                     ActualResults = a.ActualResults,
                     ComponentScore = a.ComponentScore,

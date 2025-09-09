@@ -25,6 +25,8 @@ namespace KPI.Domain
         [MaxLength(512)]
         public string CalculationFormula { get; set; }
         public int  KpiTemplateId { get; set; }
+
+        public float TargetValue { get; set; }
         public float Weight { get; set; } 
         public DateTime DeadLine { get; set; }
 

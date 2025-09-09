@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <Folder Include="KPIModule\Abstract\" />
-    <Folder Include="KPIModule\Dtos\" />
     <Folder Include="KPIModule\Implements\" />
   </ItemGroup>
 
