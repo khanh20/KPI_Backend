@@ -1,4 +1,5 @@
-﻿using KPI.ApplicationService.KPIModule.Abstract;
+﻿using KPI.ApplicationService.KpiModule.Implements;
+using KPI.ApplicationService.KPIModule.Abstract;
 using KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -72,5 +73,22 @@ namespace KPI.API.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+        #region Export Excel
+        [HttpGet("assignments/export")]
+        public async Task<IActionResult> ExportAssignment([FromQuery] int? unitId, [FromQuery] int? userId, [FromQuery] int year)
+        {
+            var fileBytes = await _assignmentService.ExportAssignmentToExcelAsync(unitId, userId, year);
+
+            string fileName = userId.HasValue
+                ? $"KPI_User_{userId}_{year}.xlsx"
+                : $"KPI_Unit_{unitId}_{year}.xlsx";
+
+            return File(fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
+        #endregion
     }
 }

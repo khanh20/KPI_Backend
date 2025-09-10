@@ -1,4 +1,5 @@
 ﻿
+using ClosedXML.Excel;
 using KPI.ApplicationService.KPIModule.Abstract;
 using KPI.ApplicationService.KPIModule.Dtos;
 using KPI.ApplicationService.KPIModule.Dtos.ApprovalDto;
@@ -405,7 +406,10 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 UserId = dto.UserId,
                 UnitId = dto.UnitId,
                 KpiItemId = dto.KpiItemId,
-                ContributionWeight = dto.ContributionWeight ?? item.Weight,
+                ContributionWeight = dto.ContributionWeight.HasValue
+                    ? dto.ContributionWeight.Value
+                    : 100f,
+
                 Year = dto.Year,
                 Status = status,
                 CreatedByUserId = createdBy,
@@ -670,6 +674,186 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
         #endregion
 
+        #region Export Excel
 
+        public async Task<byte[]> ExportAssignmentToExcelAsync(int? unitId, int? userId, int year)
+        {
+            var query = from a in _context.KpiAssignments
+                        join i in _context.KpiItems on a.KpiItemId equals i.Id
+                        where a.Year == year && !a.Deleted
+                        select new
+                        {
+                            a.UnitId,
+                            a.UserId,
+                            i.KpiName,
+                            i.KpiType,
+                            i.Weight,
+                            i.TargetValue,
+                            i.CalculationFormula,
+                            i.DeadLine,
+                            a.ActualResults,
+                            a.ComponentScore,
+                            a.ContributionWeight
+                        };
+
+            if (userId.HasValue)
+                query = query.Where(x => x.UserId == userId.Value);
+            else if (unitId.HasValue)
+                query = query.Where(x => x.UnitId == unitId.Value);
+
+            var data = await query.ToListAsync();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("KPI");
+                int row = 1;
+
+                // Header chung
+                worksheet.Cell(row, 1).Value = "STT";
+                worksheet.Cell(row, 2).Value = "Tên KPI";
+                worksheet.Cell(row, 3).Value = "Loại KPI";
+                worksheet.Cell(row, 4).Value = "Trọng số (%)";
+                //worksheet.Cell(row, 5).Value = "Phân bổ (%)";
+                worksheet.Cell(row, 5).Value = "Giá trị mục tiêu";
+                worksheet.Cell(row, 6).Value = "Công thức tính";
+                worksheet.Cell(row, 7).Value = "Kết quả thực tế";
+                worksheet.Cell(row, 8).Value = "Điểm KPI";
+
+                worksheet.Range(row, 1, row, 8).Style.Font.SetBold();
+                row++;
+
+                // Group theo loại KPI
+                var grouped = data.GroupBy(x => x.KpiType).ToList();
+
+                foreach (var group in grouped)
+                {
+                    // Dòng tiêu đề loại KPI
+                    worksheet.Cell(row, 1).Value = group.Key;
+                    worksheet.Range(row, 1, row, 8).Merge().Style
+                        .Font.SetBold()
+                        .Fill.SetBackgroundColor(XLColor.LightGray);
+                    row++;
+
+                    int stt = 1;
+                    foreach (var item in group)
+                    {
+                        worksheet.Cell(row, 1).Value = stt++;
+                        worksheet.Cell(row, 2).Value = item.KpiName;
+                        worksheet.Cell(row, 3).Value = item.KpiType;
+
+                        // Trọng số
+                        //worksheet.Cell(row, 4).Value = item.Weight;
+                        //worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.00\\%";
+
+                        // Phân bổ = Weight x ContributionWeight
+                        worksheet.Cell(row, 4).Value = (item.Weight * item.ContributionWeight)+ "%";
+                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.00\\%";
+
+                        worksheet.Cell(row, 5).Value = item.TargetValue;
+                        worksheet.Cell(row, 6).Value = item.CalculationFormula;
+                        worksheet.Cell(row, 7).Value = item.ActualResults;
+                        worksheet.Cell(row, 8).Value = item.ComponentScore;
+
+                        row++;
+                    }
+
+                    row++; // cách 1 dòng giữa các nhóm
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    return stream.ToArray();
+                }
+            }
+        }
+
+        public async Task<byte[]> ExportTemplateToExcelAsync(int? templateId)
+        {
+            var query = from t in _context.KpiTemplates
+                        join i in _context.KpiItems on t.Id equals i.KpiTemplateId
+                        where !t.Deleted
+                        select new
+                        {
+                            t.Id,
+                            t.Year,
+                            t.TemplateName,
+                            i.KpiName,
+                            i.KpiType,
+                            i.Weight,
+                            i.TargetValue,
+                            i.CalculationFormula,
+                        };
+
+            // Lọc theo TemplateId nếu có truyền vào
+            if (templateId.HasValue)
+            {
+                query = query.Where(x => x.Id == templateId.Value);
+            }
+
+            var data = await query.ToListAsync();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("KPI");
+                int row = 1;
+
+                // Header
+                worksheet.Cell(row, 1).Value = "STT";
+                worksheet.Cell(row, 2).Value = "Tên KPI";
+                worksheet.Cell(row, 3).Value = "Loại KPI";
+                worksheet.Cell(row, 4).Value = "Trọng số (%)";
+                worksheet.Cell(row, 5).Value = "Giá trị mục tiêu";
+                worksheet.Cell(row, 6).Value = "Công thức tính";
+                worksheet.Cell(row, 7).Value = "Kết quả thực tế";
+                worksheet.Cell(row, 8).Value = "Điểm KPI";
+
+                worksheet.Range(row, 1, row, 8).Style.Font.SetBold();
+                row++;
+
+                // Group theo loại KPI
+                var grouped = data.GroupBy(x => x.KpiType).ToList();
+
+                foreach (var group in grouped)
+                {
+                    // Dòng tiêu đề loại KPI
+                    worksheet.Cell(row, 1).Value = group.Key;
+                    worksheet.Range(row, 1, row, 8).Merge().Style
+                        .Font.SetBold()
+                        .Fill.SetBackgroundColor(XLColor.LightGray);
+                    row++;
+
+                    int stt = 1;
+                    foreach (var item in group)
+                    {
+                        worksheet.Cell(row, 1).Value = stt++;
+                        worksheet.Cell(row, 2).Value = item.KpiName;
+                        worksheet.Cell(row, 3).Value = item.KpiType;
+
+                        worksheet.Cell(row, 4).Value = item.Weight;
+                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.00\\%";
+
+                        worksheet.Cell(row, 5).Value = item.TargetValue;
+                        worksheet.Cell(row, 6).Value = item.CalculationFormula;
+
+                        row++;
+                    }
+
+                    row++; // cách 1 dòng giữa các nhóm
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    return stream.ToArray();
+                }
+            }
+        }
+
+        #endregion
     }
 }

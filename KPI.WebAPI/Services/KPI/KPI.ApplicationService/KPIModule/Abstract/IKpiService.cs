@@ -69,7 +69,9 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<UnitDto?> UpdateAsync(int id, UpdateUnitDto dto);
         Task<bool> DeleteAsync(int id);
         #endregion
-
-
+        #region Export Excel
+        Task<byte[]> ExportAssignmentToExcelAsync(int? unitId, int? userId, int year);
+        Task<byte[]> ExportTemplateToExcelAsync(int? templateId);
+        #endregion
     }
 }
