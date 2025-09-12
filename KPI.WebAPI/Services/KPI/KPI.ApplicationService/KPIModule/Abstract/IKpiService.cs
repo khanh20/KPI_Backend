@@ -2,6 +2,7 @@
 using KPI.ApplicationService.KPIModule.Dtos.ApprovalDto;
 using KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto;
 using KPI.ApplicationService.KPIModule.Dtos.UnitDto;
+using KPI.ApplicationService.KPIModule.Dtos.ViolationDto;
 using KPI.Domain;
 using System;
 using System.Collections.Generic;
@@ -53,6 +54,9 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<List<KpiAssignmentDto>> GetAssignmentByUnitAsync(int unitId);
         Task<KpiAssignmentDto?> UpdateAssignmentAsync(int id, UpdateKpiAssignmentDto dto, int modifiedBy);
         Task<List<KpiAssignmentDto>> GetAllAssigment();
+        Task<List<KPIAssignment>> SelfEvaluate(int userId, SelfEvaluateDto dto);
+        Task<KpiTypeScoreResultDto> GetTotalComponentScoreByUser(int userId);
+        Task<List<KpiTypeScoreResultDto>> GetAllKpiScores();
         #endregion
 
         #region Approval
@@ -69,7 +73,12 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<UnitDto?> UpdateAsync(int id, UpdateUnitDto dto);
         Task<bool> DeleteAsync(int id);
         #endregion
+        #region
+        Task<CreateKpiViolationDto> CreateViolationAsync(CreateKpiViolationDto dto);
+        
+
+            #endregion
 
 
-    }
+        }
 }
