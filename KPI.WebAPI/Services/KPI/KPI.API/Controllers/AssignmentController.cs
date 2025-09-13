@@ -135,6 +135,35 @@ namespace KPI.API.Controllers
             return Ok(result);
         }
 
+        //tất cả Assignment trong một Unit
+        [HttpGet("unit/{unitId}/{year}")]
+        public async Task<IActionResult> GetAssignmentsByUnit(int unitId, int year)
+        {
+            var assignments = await _assignmentService.GetAssignmentsByUnitAsync(unitId, year);
+            return Ok(assignments);
+        }
+
+        // Get  tất cả Assignment của member thuộc quyền tôi
+        [HttpGet("unit-members/{year}")]
+        public async Task<IActionResult> GetAssignmentsByUnitMembers(int year)
+        {
+            var userIdClaim = User.FindFirst("id")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+
+            int currentUserId = int.Parse(userIdClaim);
+
+            var assignments = await _assignmentService.GetAssignmentsByUnitMembersAsync(currentUserId, year);
+            return Ok(assignments);
+        }
+
+        // Get  tất cả Assignment của trưởng đơn vị trong một Unit
+        [HttpGet("units/{year}")]
+        public async Task<IActionResult> GetUnitAssignments(int year)
+        {
+            var result = await _assignmentService.GetUnitAssignmentsAsync(year);
+            return Ok(result);
+        }
+
 
     }
 }
