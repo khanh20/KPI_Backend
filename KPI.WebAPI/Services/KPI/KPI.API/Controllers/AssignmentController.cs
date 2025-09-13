@@ -74,6 +74,7 @@ namespace KPI.API.Controllers
             }
         }
 
+
         #region Export Excel
         [HttpGet("assignments/export")]
         public async Task<IActionResult> ExportAssignment([FromQuery] int? unitId, [FromQuery] int? userId, [FromQuery] int year)
@@ -90,5 +91,50 @@ namespace KPI.API.Controllers
         }
 
         #endregion
+
+        [HttpPost("self-evaluate")]
+        public async Task<IActionResult> SelfEvaluate([FromBody] SelfEvaluateDto dto)
+        {
+            var userIdClaim = User.FindFirst("id")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+            int currentUserId = int.Parse(userIdClaim);
+
+            try
+            {
+                var assignment = await _assignmentService.SelfEvaluate(currentUserId, dto);
+                return Ok(new { message = "Đánh giá thành công", assignment });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("componentScores/{userId}")]
+        public async Task<IActionResult> GetTotalComponentScores(int userId)
+        {
+            var result = await _assignmentService.GetTotalComponentScoreByUser(userId);
+
+            if (result == null || result.ScoresByType == null || result.ScoresByType.Count == 0)
+            {
+                return NotFound(new { message = "Không tìm thấy dữ liệu cho user này hoặc user chưa đánh giá." });
+            }
+
+            return Ok(result);
+        }
+        [HttpPost("GetAllTotalScore")]
+        public async Task<IActionResult> GetAllKpiScores()
+        {
+            var result = await _assignmentService.GetAllKpiScores();
+
+            if (result == null || result.Count == 0)
+            {
+                return NotFound();
+            }
+
+            return Ok(result);
+        }
+
+
     }
 }

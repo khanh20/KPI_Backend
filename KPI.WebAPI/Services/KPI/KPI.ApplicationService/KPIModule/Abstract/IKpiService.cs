@@ -2,6 +2,7 @@
 using KPI.ApplicationService.KPIModule.Dtos.ApprovalDto;
 using KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto;
 using KPI.ApplicationService.KPIModule.Dtos.UnitDto;
+using KPI.ApplicationService.KPIModule.Dtos.ViolationDto;
 using KPI.Domain;
 using System;
 using System.Collections.Generic;
@@ -53,6 +54,20 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<List<KpiAssignmentDto>> GetAssignmentByUnitAsync(int unitId);
         Task<KpiAssignmentDto?> UpdateAssignmentAsync(int id, UpdateKpiAssignmentDto dto, int modifiedBy);
         Task<List<KpiAssignmentDto>> GetAllAssigment();
+
+        Task<List<KPIAssignment>> SelfEvaluate(int userId, SelfEvaluateDto dto);
+        Task<KpiTypeScoreResultDto> GetTotalComponentScoreByUser(int userId);
+        Task<List<KpiTypeScoreResultDto>> GetAllKpiScores();
+
+        //Lấy tất cả assignment của Unit
+        Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitAsync(int unitId, int year);
+        //Lấy các assignment của nhân viên trong đơn vị mình
+
+        Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitMembersAsync(int headOfUnitId, int year);
+        //Lấy các assignment của đơn vị 
+
+        Task<List<UnitAssignmentDetailsDto>> GetUnitAssignmentsAsync(int year);
+
         #endregion
 
         #region Approval
@@ -72,6 +87,12 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         #region Export Excel
         Task<byte[]> ExportAssignmentToExcelAsync(int? unitId, int? userId, int year);
         Task<byte[]> ExportTemplateToExcelAsync(int? templateId);
+        #endregion
+
+        #region
+        Task<CreateKpiViolationDto> CreateViolationAsync(CreateKpiViolationDto dto);
+
+
         #endregion
     }
 }
