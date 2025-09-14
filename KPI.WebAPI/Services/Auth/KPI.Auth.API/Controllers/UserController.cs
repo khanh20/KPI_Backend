@@ -75,7 +75,7 @@ namespace KPI.Auth.API.Controllers
         /// </summary>
         /// <returns></returns> 
         /// 
-        [Authorize(Roles = "Admin, hieu truong")]
+        //[Authorize(Roles = "Admin, hieu truong")]
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
         {

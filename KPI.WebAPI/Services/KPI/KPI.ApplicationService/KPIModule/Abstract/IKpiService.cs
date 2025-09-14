@@ -71,7 +71,9 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         #endregion
 
         #region Approval
-        Task<ApprovalLogDto> ApproveAsync(ApproveKpiAssignmentDto dto, int approverId);
+        Task ApproveBulkAsync(List<int> assignmentIds, string comment, int approverId);
+
+        Task RejectBulkAsync(List<int> assignmentIds, string comment, int approverId);
         Task<List<ApprovalLogDto>> GetLogsByAssignmentIdAsync(int assignmentId);
 
         Task<bool> ApproveDeleteAsync(int logId, int approverId, bool approve, string? comment = null);

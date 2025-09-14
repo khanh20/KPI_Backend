@@ -13,6 +13,8 @@ namespace KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto
         public int UserId { get; set; }
         public int Year { get; set; }
 
+        public string Status { get; set; }
+
         public List<string> Statuses { get; set; } = new(); // chứa nhiều status
         public List<AssignmentItemDto> KpiItems { get; set; } = new();
     }

@@ -24,9 +24,16 @@ namespace KPI.API.Controllers
         {
             var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
             var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "User";
-
-            var result = await _assignmentService.AssignItemAsync(dto, userId, role);
-            return Ok(result);
+            try
+            {
+                var result = await _assignmentService.AssignItemAsync(dto, userId, role);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // lỗi nghiệp vụ, FE sẽ nhận được status 400 + message
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("assign-template")]

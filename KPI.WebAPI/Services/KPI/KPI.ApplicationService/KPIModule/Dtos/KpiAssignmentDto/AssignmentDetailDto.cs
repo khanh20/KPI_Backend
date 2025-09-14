@@ -17,6 +17,7 @@ namespace KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto
 
 public class AssignmentItemDto
 {
+    public int AssignmentId { get; set; }
     public int KpiItemId { get; set; }   // liên kết với bảng KpiItem
     public float ContributionWeight { get; set; }
     public float ActualResults { get; set; }

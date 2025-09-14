@@ -298,39 +298,81 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
         #region ApprovalLog
         //Chua fix
-        public async Task<ApprovalLogDto> ApproveAsync(ApproveKpiAssignmentDto dto, int approverId)
+        // Sửa đổi phương thức ApproveAsync để xử lý phê duyệt hàng loạt
+        public async Task ApproveBulkAsync(List<int> assignmentIds, string comment, int approverId)
         {
-            var assignment = await _context.KpiAssignments.FindAsync(dto.AssignmentId);
-            if (assignment == null) throw new Exception("Assignment not found");
+            // Lấy tất cả các assignment cần phê duyệt
+            var assignmentsToApprove = await _context.KpiAssignments
+                .Where(a => assignmentIds.Contains(a.Id))
+                .ToListAsync();
 
-            // Cập nhật trạng thái
-            assignment.Status = dto.Action;
-            assignment.ModifiedBy = approverId;
-            assignment.ModifiedDate = DateTime.UtcNow;
-
-            // Log lại
-            var log = new ApprovalLog
+            if (assignmentsToApprove == null || !assignmentsToApprove.Any())
             {
-                TargetId = assignment.Id,
-                UserId = approverId,
-                Action = dto.Action,
-                Comment = dto.Comment,
-                Timestamp = DateTime.UtcNow
-            };
+                throw new Exception("Assignments not found");
+            }
 
-            _context.ApprovalLogs.Add(log);
+            foreach (var assignment in assignmentsToApprove)
+            {
+                // Cập nhật trạng thái
+                assignment.Status = "Approved";
+                assignment.ModifiedBy = approverId;
+                assignment.ModifiedDate = DateTime.UtcNow;
+
+                // Ghi log cho từng assignment
+                var log = new ApprovalLog
+                {
+                    TargetType = "KpiAssignment",
+                    TargetId = assignment.Id,
+                    UserId = approverId,
+                    Action = "Approved",
+                    Comment = comment,
+                    Timestamp = DateTime.UtcNow
+                };
+                _context.ApprovalLogs.Add(log);
+            }
+
+            // Lưu tất cả các thay đổi vào database
             await _context.SaveChangesAsync();
-
-            return new ApprovalLogDto
-            {
-                Id = log.Id,
-                KpiAssignmentId = log.TargetId,
-                UserId = log.UserId,
-                Action = log.Action,
-                Comment = log.Comment,
-                Timestamp = log.Timestamp
-            };
         }
+
+        // Sửa đổi phương thức RejectAsync để xử lý từ chối hàng loạt
+        public async Task RejectBulkAsync(List<int> assignmentIds, string comment, int approverId)
+        {
+            // Lấy tất cả các assignment cần từ chối
+            var assignmentsToReject = await _context.KpiAssignments
+                .Where(a => assignmentIds.Contains(a.Id))
+                .ToListAsync();
+
+            if (assignmentsToReject == null || !assignmentsToReject.Any())
+            {
+                throw new Exception("Assignments not found");
+            }
+
+            foreach (var assignment in assignmentsToReject)
+            {
+                // Cập nhật trạng thái
+                assignment.Status = "Rejected";
+                assignment.ModifiedBy = approverId;
+                assignment.ModifiedDate = DateTime.UtcNow;
+
+                // Ghi log cho từng assignment
+                var log = new ApprovalLog
+                {
+                    TargetType = "KpiAssignment",
+                    TargetId = assignment.Id,
+                    UserId = approverId,
+                    Action = "Rejected",
+                    Comment = comment,
+                    Timestamp = DateTime.UtcNow
+                };
+                _context.ApprovalLogs.Add(log);
+            }
+
+            // Lưu tất cả các thay đổi vào database
+            await _context.SaveChangesAsync();
+        }
+
+
 
         //Chua fix
         public async Task<List<ApprovalLogDto>> GetLogsByAssignmentIdAsync(int assignmentId)
@@ -397,10 +439,24 @@ namespace KPI.ApplicationService.KpiModule.Implements
         // Giao 1 KPIItem
         public async Task<KpiAssignmentDto> AssignItemAsync(CreateKpiAssignmentDto dto, int createdBy, string creatorRole)
         {
+
+
+            var existing = await _context.KpiAssignments
+            .FirstOrDefaultAsync(a => a.UserId == dto.UserId
+                           && a.KpiItemId == dto.KpiItemId
+                           && a.Year == dto.Year);
+
+            if (existing != null)
+            {
+                throw new InvalidOperationException("KPI Item này đã được giao cho người dùng trong năm này.");
+            }
+
             var item = await _context.KpiItems.FindAsync(dto.KpiItemId);
             if (item == null) throw new Exception("KPI Item not found");
 
-            string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+
+            //string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+            string status = "Assigned";
 
             var assignment = new KPIAssignment
             {
@@ -426,7 +482,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 TargetId = dto.KpiItemId,
                 UserId = createdBy,
                 Action = "Assigned",
-                Comment = status == "Approved" ? "Assigned and auto-approved by Admin/Principal" : "Assigned and pending approval",
+                Comment = "KPI item assigned, waiting for self-evaluation",
                 Timestamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
@@ -452,7 +508,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
             if (!items.Any()) throw new Exception("No KPI items in template");
 
-            string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+            string status =  "Assigned";
 
             var assignments = items.Select(item => new KPIAssignment
             {
@@ -846,13 +902,13 @@ namespace KPI.ApplicationService.KpiModule.Implements
                    (a, i) => new {a, i}
                 )
                 .Where(x => x.a.UnitId == unitId && x.a.Year == year)
-                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year })
+                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status })
                 .Select(g => new AssignmentDetailsDto
                 {
                     UserId = g.Key.UserId,
                     UnitId = g.Key.UnitId,
                     Year = g.Key.Year,
-                    //Status = g.Key.Status,
+                    Status = g.Key.Status,
                     KpiItems = g.Select(x => new AssignmentItemDto
                     {
                         KpiItemId = x.a.KpiItemId,
@@ -885,15 +941,16 @@ namespace KPI.ApplicationService.KpiModule.Implements
                       i => i.Id,
                       (a, i) => new { a, i })
                 .Where(x =>  x.a.UnitId == unit.Id && x.a.Year == year)
-                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year})
+                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status})
                 .Select(g => new AssignmentDetailsDto
                 {
                     UserId = g.Key.UserId,
                     UnitId = g.Key.UnitId,
                     Year = g.Key.Year,
-                    //Status = g.Key.Status,
+                    Status = g.Key.Status,
                     KpiItems = g.Select(x => new AssignmentItemDto
                     {
+                        AssignmentId = x.a.Id,
                         KpiItemId = x.a.KpiItemId,
                         ContributionWeight = x.a.ContributionWeight,
                         ActualResults = x.a.ActualResults,
@@ -926,16 +983,17 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     i => i.Id,
                     (b, i) => new {b.a, b.u, i})
                 .Where(x => x.a.Year == year && x.a.UserId == x.u.HeadOfUnitId) // chỉ KPI đơn vị
-                .GroupBy(x => new { x.a.UnitId, x.u.Name, x.a.UserId, x.a.Year })
+                .GroupBy(x => new { x.a.UnitId, x.u.Name, x.a.UserId, x.a.Year, x.a.Status })
                 .Select(g => new UnitAssignmentDetailsDto
                 {
                     UnitId = g.Key.UnitId,
                     UnitName = g.Key.Name,
                     UserId = g.Key.UserId,   // trưởng đơn vị
                     Year = g.Key.Year,
-                    //Status = g.Key.Status,
+                    Status = g.Key.Status,
                     KpiItems = g.Select(x => new AssignmentItemDto
                     {
+                        AssignmentId = x.a.Id,
                         KpiItemId = x.a.KpiItemId,
                         TargetValue = x.i.TargetValue,
                         Weight = x.i.Weight,

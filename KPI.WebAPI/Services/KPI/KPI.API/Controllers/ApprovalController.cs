@@ -18,14 +18,27 @@ namespace KPI.API.Controllers
         {
             _approvalService = approvalService;
         }
-        
-        [HttpPost]
-        public async Task<IActionResult> Approve([FromBody] ApproveKpiAssignmentDto dto)
+
+        [HttpPost("bulk-approve")]
+        public async Task<IActionResult> ApproveBulk([FromBody] ApproveKpiAssignmentBulkDto dto)
         {
             var approverId = int.Parse(User.FindFirst("id")?.Value ?? "0");
-            var log = await _approvalService.ApproveAsync(dto, approverId);
-            return Ok(log);
+            await _approvalService.ApproveBulkAsync(dto.AssignmentIds, dto.Comment, approverId);
+            return Ok(new { message = "Assignments approved successfully." });
         }
+
+        // Endpoint mới để từ chối hàng loạt
+        [HttpPost("bulk-reject")]
+        public async Task<IActionResult> RejectBulk([FromBody] ApproveKpiAssignmentBulkDto dto)
+        {
+            var approverId = int.Parse(User.FindFirst("id")?.Value ?? "0");
+            await _approvalService.RejectBulkAsync(dto.AssignmentIds, dto.Comment, approverId);
+            return Ok(new { message = "Assignments rejected successfully." });
+        }
+
+
+
+
 
 
         [HttpGet("{assignmentId}")]
