@@ -940,7 +940,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                       a => a.KpiItemId,
                       i => i.Id,
                       (a, i) => new { a, i })
-                .Where(x =>  x.a.UnitId == unit.Id && x.a.Year == year)
+                .Where(x =>  x.a.UnitId == unit.Id && x.a.Year == year && x.a.UserId != unit.HeadOfUnitId)
                 .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status})
                 .Select(g => new AssignmentDetailsDto
                 {
