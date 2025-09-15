@@ -12,6 +12,6 @@ namespace KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto
         public int UnitId { get; set; }
         public int TemplateId { get; set; }
         public int Year { get; set; }
-        public float? DefaultContributionWeight { get; set; } = null;
+        public float? DefaultContributionWeight { get; set; }
     }
 }

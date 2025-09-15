@@ -1,4 +1,5 @@
 ﻿
+using ClosedXML.Excel;
 using KPI.ApplicationService.KPIModule.Abstract;
 using KPI.ApplicationService.KPIModule.Dtos;
 using KPI.ApplicationService.KPIModule.Dtos.ApprovalDto;
@@ -8,20 +9,16 @@ using KPI.ApplicationService.KPIModule.Dtos.ViolationDto;
 using KPI.Domain;
 using KPI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System.Linq;
 
 namespace KPI.ApplicationService.KpiModule.Implements
 {
     public class KpiService : IKpiService
     {
         private readonly KpiDbContext _context;
-     
 
         public KpiService(KpiDbContext context)
         {
             _context = context;
-          
         }
 
         //KPI Template
@@ -152,16 +149,16 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return await _context.KpiItems
                    .Where(i => !i.Deleted)  // lấy delete = false
                    .Select(i => new KpiItemDto
-        {
-                    Id = i.Id,
-                    KpiName = i.KpiName,
-                    KpiType = i.KpiType,
-                    Weight = i.Weight,
-                    TargetValue = i.TargetValue,
-                    KpiTemplateId = i.KpiTemplateId,
-                    CalculationFormula = i.CalculationFormula,
-                    DeadLine = i.DeadLine
-                }).ToListAsync();
+                   {
+                       Id = i.Id,
+                       KpiName = i.KpiName,
+                       KpiType = i.KpiType,
+                       Weight = i.Weight,
+                       TargetValue = i.TargetValue,
+                       KpiTemplateId = i.KpiTemplateId,
+                       CalculationFormula = i.CalculationFormula,
+                       DeadLine = i.DeadLine
+                   }).ToListAsync();
         }
 
         public async Task<KpiItemDto?> GetItemByIdAsync(int id)
@@ -206,7 +203,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 KpiName = item.KpiName,
                 KpiType = item.KpiType,
                 Weight = item.Weight,
-                TargetValue= item.TargetValue,
+                TargetValue = item.TargetValue,
                 CalculationFormula = item.CalculationFormula,
                 KpiTemplateId = item.KpiTemplateId,
                 DeadLine = item.DeadLine
@@ -301,39 +298,81 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
         #region ApprovalLog
         //Chua fix
-        public async Task<ApprovalLogDto> ApproveAsync(ApproveKpiAssignmentDto dto, int approverId)
+        // Sửa đổi phương thức ApproveAsync để xử lý phê duyệt hàng loạt
+        public async Task ApproveBulkAsync(List<int> assignmentIds, string comment, int approverId)
         {
-            var assignment = await _context.KpiAssignments.FindAsync(dto.AssignmentId);
-            if (assignment == null) throw new Exception("Assignment not found");
+            // Lấy tất cả các assignment cần phê duyệt
+            var assignmentsToApprove = await _context.KpiAssignments
+                .Where(a => assignmentIds.Contains(a.Id))
+                .ToListAsync();
 
-            // Cập nhật trạng thái
-            assignment.Status = dto.Action;
-            assignment.ModifiedBy = approverId;
-            assignment.ModifiedDate = DateTime.UtcNow;
-
-            // Log lại
-            var log = new ApprovalLog
+            if (assignmentsToApprove == null || !assignmentsToApprove.Any())
             {
-                TargetId = assignment.Id,
-                UserId = approverId,
-                Action = dto.Action,
-                Comment = dto.Comment,
-                Timestamp = DateTime.UtcNow
-            };
+                throw new Exception("Assignments not found");
+            }
 
-            _context.ApprovalLogs.Add(log);
+            foreach (var assignment in assignmentsToApprove)
+            {
+                // Cập nhật trạng thái
+                assignment.Status = "Approved";
+                assignment.ModifiedBy = approverId;
+                assignment.ModifiedDate = DateTime.UtcNow;
+
+                // Ghi log cho từng assignment
+                var log = new ApprovalLog
+                {
+                    TargetType = "KpiAssignment",
+                    TargetId = assignment.Id,
+                    UserId = approverId,
+                    Action = "Approved",
+                    Comment = comment,
+                    Timestamp = DateTime.UtcNow
+                };
+                _context.ApprovalLogs.Add(log);
+            }
+
+            // Lưu tất cả các thay đổi vào database
             await _context.SaveChangesAsync();
-
-            return new ApprovalLogDto
-            {
-                Id = log.Id,
-                KpiAssignmentId = log.TargetId,
-                UserId = log.UserId,
-                Action = log.Action,
-                Comment = log.Comment,
-                Timestamp = log.Timestamp
-            };
         }
+
+        // Sửa đổi phương thức RejectAsync để xử lý từ chối hàng loạt
+        public async Task RejectBulkAsync(List<int> assignmentIds, string comment, int approverId)
+        {
+            // Lấy tất cả các assignment cần từ chối
+            var assignmentsToReject = await _context.KpiAssignments
+                .Where(a => assignmentIds.Contains(a.Id))
+                .ToListAsync();
+
+            if (assignmentsToReject == null || !assignmentsToReject.Any())
+            {
+                throw new Exception("Assignments not found");
+            }
+
+            foreach (var assignment in assignmentsToReject)
+            {
+                // Cập nhật trạng thái
+                assignment.Status = "Rejected";
+                assignment.ModifiedBy = approverId;
+                assignment.ModifiedDate = DateTime.UtcNow;
+
+                // Ghi log cho từng assignment
+                var log = new ApprovalLog
+                {
+                    TargetType = "KpiAssignment",
+                    TargetId = assignment.Id,
+                    UserId = approverId,
+                    Action = "Rejected",
+                    Comment = comment,
+                    Timestamp = DateTime.UtcNow
+                };
+                _context.ApprovalLogs.Add(log);
+            }
+
+            // Lưu tất cả các thay đổi vào database
+            await _context.SaveChangesAsync();
+        }
+
+
 
         //Chua fix
         public async Task<List<ApprovalLogDto>> GetLogsByAssignmentIdAsync(int assignmentId)
@@ -400,17 +439,34 @@ namespace KPI.ApplicationService.KpiModule.Implements
         // Giao 1 KPIItem
         public async Task<KpiAssignmentDto> AssignItemAsync(CreateKpiAssignmentDto dto, int createdBy, string creatorRole)
         {
+
+
+            var existing = await _context.KpiAssignments
+            .FirstOrDefaultAsync(a => a.UserId == dto.UserId
+                           && a.KpiItemId == dto.KpiItemId
+                           && a.Year == dto.Year);
+
+            if (existing != null)
+            {
+                throw new InvalidOperationException("KPI Item này đã được giao cho người dùng trong năm này.");
+            }
+
             var item = await _context.KpiItems.FindAsync(dto.KpiItemId);
             if (item == null) throw new Exception("KPI Item not found");
 
-            string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+
+            //string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+            string status = "Assigned";
 
             var assignment = new KPIAssignment
             {
                 UserId = dto.UserId,
                 UnitId = dto.UnitId,
                 KpiItemId = dto.KpiItemId,
-                ContributionWeight = dto.ContributionWeight ?? item.Weight,
+                ContributionWeight = dto.ContributionWeight.HasValue
+                    ? dto.ContributionWeight.Value
+                    : 100f,
+
                 Year = dto.Year,
                 Status = status,
                 CreatedByUserId = createdBy,
@@ -426,7 +482,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 TargetId = dto.KpiItemId,
                 UserId = createdBy,
                 Action = "Assigned",
-                Comment = status == "Approved" ? "Assigned and auto-approved by Admin/Principal" : "Assigned and pending approval",
+                Comment = "KPI item assigned, waiting for self-evaluation",
                 Timestamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
@@ -452,7 +508,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
             if (!items.Any()) throw new Exception("No KPI items in template");
 
-            string status = (creatorRole == "Admin" || creatorRole == "Principal") ? "Approved" : "PendingApproval";
+            string status =  "Assigned";
 
             var assignments = items.Select(item => new KPIAssignment
             {
@@ -518,28 +574,20 @@ namespace KPI.ApplicationService.KpiModule.Implements
         {
             return await _context.KpiAssignments
                 .Where(a => a.UserId == userId)
-                .Join(
-                    _context.KpiItems,
-                    assignment => assignment.KpiItemId,
-                    item => item.Id,
-                    (assignment, item) => new KpiAssignmentDto
-                    {
-                        Id = assignment.Id,
-                        UserId = assignment.UserId,
-                        UnitId = assignment.UnitId,
-                        KpiItemId = assignment.KpiItemId,
-                        ContributionWeight = assignment.ContributionWeight,
-                        ActualResults = assignment.ActualResults,
-                        ComponentScore = assignment.ComponentScore,
-                        Status = assignment.Status,
-                        Year = assignment.Year,
-
-                        KpiName = item.KpiName,
-                        KpiType = item.KpiType
-                    })
-                .ToListAsync();
+                .Select(a => new KpiAssignmentDto
+                {
+                    Id = a.Id,
+                    UserId = a.UserId,
+                    UnitId = a.UnitId,
+                    KpiItemId = a.KpiItemId,
+                    //TargetValue = a.TargetValue,
+                    ContributionWeight = a.ContributionWeight,
+                    ActualResults = a.ActualResults,
+                    ComponentScore = a.ComponentScore,
+                    Status = a.Status,
+                    Year = a.Year
+                }).ToListAsync();
         }
-
 
         public async Task<List<KpiAssignmentDto>> GetAssignmentByUnitAsync(int unitId)
         {
@@ -606,6 +654,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 })
                 .ToListAsync();
         }
+
 
         public async Task<List<KPIAssignment>> SelfEvaluate(int userId, SelfEvaluateDto dto)
         {
@@ -843,6 +892,122 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return result;
         }
 
+        //Get  tất cả Assignment trong một Unit
+        public async Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitAsync(int unitId, int year)
+        {
+            var assignments = await _context.KpiAssignments
+                .Join(_context.KpiItems,
+                    a => a.KpiItemId,
+                    i => i.Id,
+                   (a, i) => new {a, i}
+                )
+                .Where(x => x.a.UnitId == unitId && x.a.Year == year)
+                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status })
+                .Select(g => new AssignmentDetailsDto
+                {
+                    UserId = g.Key.UserId,
+                    UnitId = g.Key.UnitId,
+                    Year = g.Key.Year,
+                    Status = g.Key.Status,
+                    KpiItems = g.Select(x => new AssignmentItemDto
+                    {
+                        KpiItemId = x.a.KpiItemId,
+                        ContributionWeight = x.a.ContributionWeight,
+                        ActualResults = x.a.ActualResults,
+                        ComponentScore = x.a.ComponentScore,
+                        Weight = x.i.Weight,
+                        TargetValue = x.i.TargetValue,
+                        CalculationFormula = x.i.CalculationFormula,
+                        KpiType = x.i.KpiType,
+
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return assignments;
+        }
+
+
+        //Get tất cả Assignment của member thuộc quyền tôi
+        public async Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitMembersAsync(int headOfUnitId, int year)
+        {
+            // Xác định đơn vị của trưởng đơn vị
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.HeadOfUnitId == headOfUnitId);
+            if (unit == null) return new List<AssignmentDetailsDto>();
+
+            var assignments = await _context.KpiAssignments
+                .Join(_context.KpiItems,
+                      a => a.KpiItemId,
+                      i => i.Id,
+                      (a, i) => new { a, i })
+                .Where(x =>  x.a.UnitId == unit.Id && x.a.Year == year)
+                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status})
+                .Select(g => new AssignmentDetailsDto
+                {
+                    UserId = g.Key.UserId,
+                    UnitId = g.Key.UnitId,
+                    Year = g.Key.Year,
+                    Status = g.Key.Status,
+                    KpiItems = g.Select(x => new AssignmentItemDto
+                    {
+                        AssignmentId = x.a.Id,
+                        KpiItemId = x.a.KpiItemId,
+                        ContributionWeight = x.a.ContributionWeight,
+                        ActualResults = x.a.ActualResults,
+                        ComponentScore = x.a.ComponentScore,
+                        Weight = x.i.Weight,
+                        TargetValue = x.i.TargetValue,
+                        CalculationFormula = x.i.CalculationFormula,
+                        KpiType     = x.i.KpiType,
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return assignments;
+        }
+
+
+
+
+        //Get  Assignment của trưởng đơn vị trong một Unit
+
+        public async Task<List<UnitAssignmentDetailsDto>> GetUnitAssignmentsAsync(int year)
+        {
+            var assignments = await _context.KpiAssignments
+                .Join(_context.Units,
+                      a => a.UnitId,
+                      u => u.Id,
+                      (a, u) => new { a, u })
+                .Join(_context.KpiItems,
+                    b => b.a.KpiItemId,
+                    i => i.Id,
+                    (b, i) => new {b.a, b.u, i})
+                .Where(x => x.a.Year == year && x.a.UserId == x.u.HeadOfUnitId) // chỉ KPI đơn vị
+                .GroupBy(x => new { x.a.UnitId, x.u.Name, x.a.UserId, x.a.Year, x.a.Status })
+                .Select(g => new UnitAssignmentDetailsDto
+                {
+                    UnitId = g.Key.UnitId,
+                    UnitName = g.Key.Name,
+                    UserId = g.Key.UserId,   // trưởng đơn vị
+                    Year = g.Key.Year,
+                    Status = g.Key.Status,
+                    KpiItems = g.Select(x => new AssignmentItemDto
+                    {
+                        AssignmentId = x.a.Id,
+                        KpiItemId = x.a.KpiItemId,
+                        TargetValue = x.i.TargetValue,
+                        Weight = x.i.Weight,
+                        CalculationFormula = x.i.CalculationFormula,
+                        ContributionWeight = x.a.ContributionWeight,
+                        KpiType = x.i.KpiType,
+                        ActualResults = x.a.ActualResults,
+                        ComponentScore = x.a.ComponentScore
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return assignments;
+        }
 
 
         #endregion
@@ -920,6 +1085,190 @@ namespace KPI.ApplicationService.KpiModule.Implements
         }
 
         #endregion
+
+        #region Export Excel
+
+        public async Task<byte[]> ExportAssignmentToExcelAsync(int? unitId, int? userId, int year)
+        {
+            var query = from a in _context.KpiAssignments
+                        join i in _context.KpiItems on a.KpiItemId equals i.Id
+                        where a.Year == year && !a.Deleted
+                        select new
+                        {
+                            a.UnitId,
+                            a.UserId,
+                            i.KpiName,
+                            i.KpiType,
+                            i.Weight,
+                            i.TargetValue,
+                            i.CalculationFormula,
+                            i.DeadLine,
+                            a.ActualResults,
+                            a.ComponentScore,
+                            a.ContributionWeight
+                        };
+
+            if (userId.HasValue)
+                query = query.Where(x => x.UserId == userId.Value);
+            else if (unitId.HasValue)
+                query = query.Where(x => x.UnitId == unitId.Value);
+
+            var data = await query.ToListAsync();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("KPI");
+                int row = 1;
+
+                // Header chung
+                worksheet.Cell(row, 1).Value = "STT";
+                worksheet.Cell(row, 2).Value = "Tên KPI";
+                worksheet.Cell(row, 3).Value = "Loại KPI";
+                worksheet.Cell(row, 4).Value = "Trọng số (%)";
+                //worksheet.Cell(row, 5).Value = "Phân bổ (%)";
+                worksheet.Cell(row, 5).Value = "Giá trị mục tiêu";
+                worksheet.Cell(row, 6).Value = "Công thức tính";
+                worksheet.Cell(row, 7).Value = "Kết quả thực tế";
+                worksheet.Cell(row, 8).Value = "Điểm KPI";
+
+                worksheet.Range(row, 1, row, 8).Style.Font.SetBold();
+                row++;
+
+                // Group theo loại KPI
+                var grouped = data.GroupBy(x => x.KpiType).ToList();
+
+                foreach (var group in grouped)
+                {
+                    // Dòng tiêu đề loại KPI
+                    worksheet.Cell(row, 1).Value = group.Key;
+                    worksheet.Range(row, 1, row, 8).Merge().Style
+                        .Font.SetBold()
+                        .Fill.SetBackgroundColor(XLColor.LightGray);
+                    row++;
+
+                    int stt = 1;
+                    foreach (var item in group)
+                    {
+                        worksheet.Cell(row, 1).Value = stt++;
+                        worksheet.Cell(row, 2).Value = item.KpiName;
+                        worksheet.Cell(row, 3).Value = item.KpiType;
+
+                        // Trọng số
+                        //worksheet.Cell(row, 4).Value = item.Weight;
+                        //worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.00\\%";
+
+                        // Phân bổ = Weight x ContributionWeight
+                        worksheet.Cell(row, 4).Value = (item.Weight * item.ContributionWeight) + "%";
+                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.00\\%";
+
+                        worksheet.Cell(row, 5).Value = item.TargetValue;
+                        worksheet.Cell(row, 6).Value = item.CalculationFormula;
+                        worksheet.Cell(row, 7).Value = item.ActualResults;
+                        worksheet.Cell(row, 8).Value = item.ComponentScore;
+
+                        row++;
+                    }
+
+                    row++; // cách 1 dòng giữa các nhóm
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    return stream.ToArray();
+                }
+            }
+        }
+
+        public async Task<byte[]> ExportTemplateToExcelAsync(int? templateId)
+        {
+            var query = from t in _context.KpiTemplates
+                        join i in _context.KpiItems on t.Id equals i.KpiTemplateId
+                        where !t.Deleted
+                        select new
+                        {
+                            t.Id,
+                            t.Year,
+                            t.TemplateName,
+                            i.KpiName,
+                            i.KpiType,
+                            i.Weight,
+                            i.TargetValue,
+                            i.CalculationFormula,
+                        };
+
+            // Lọc theo TemplateId nếu có truyền vào
+            if (templateId.HasValue)
+            {
+                query = query.Where(x => x.Id == templateId.Value);
+            }
+
+            var data = await query.ToListAsync();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("KPI");
+                int row = 1;
+
+                // Header
+                worksheet.Cell(row, 1).Value = "STT";
+                worksheet.Cell(row, 2).Value = "Tên KPI";
+                worksheet.Cell(row, 3).Value = "Loại KPI";
+                worksheet.Cell(row, 4).Value = "Trọng số (%)";
+                worksheet.Cell(row, 5).Value = "Giá trị mục tiêu";
+                worksheet.Cell(row, 6).Value = "Công thức tính";
+                worksheet.Cell(row, 7).Value = "Kết quả thực tế";
+                worksheet.Cell(row, 8).Value = "Điểm KPI";
+
+                worksheet.Range(row, 1, row, 8).Style.Font.SetBold();
+                row++;
+
+                // Group theo loại KPI
+                var grouped = data.GroupBy(x => x.KpiType).ToList();
+
+                foreach (var group in grouped)
+                {
+                    // Dòng tiêu đề loại KPI
+                    worksheet.Cell(row, 1).Value = group.Key;
+                    worksheet.Range(row, 1, row, 8).Merge().Style
+                        .Font.SetBold()
+                        .Fill.SetBackgroundColor(XLColor.LightGray);
+                    row++;
+
+                    int stt = 1;
+                    foreach (var item in group)
+                    {
+                        worksheet.Cell(row, 1).Value = stt++;
+                        worksheet.Cell(row, 2).Value = item.KpiName;
+                        worksheet.Cell(row, 3).Value = item.KpiType;
+
+                        worksheet.Cell(row, 4).Value = item.Weight;
+                        worksheet.Cell(row, 4).Style.NumberFormat.Format = "0.00\\%";
+
+                        worksheet.Cell(row, 5).Value = item.TargetValue;
+                        worksheet.Cell(row, 6).Value = item.CalculationFormula;
+
+                        row++;
+                    }
+
+                    row++; // cách 1 dòng giữa các nhóm
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    return stream.ToArray();
+                }
+            }
+        }
+
+        #endregion
+
+
         #region Violation
         public async Task<CreateKpiViolationDto> CreateViolationAsync(CreateKpiViolationDto dto)
         {
@@ -947,9 +1296,6 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
 
         #endregion
-
-
-
 
     }
 }

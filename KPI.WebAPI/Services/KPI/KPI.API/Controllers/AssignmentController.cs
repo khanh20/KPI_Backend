@@ -1,4 +1,5 @@
-﻿using KPI.ApplicationService.KPIModule.Abstract;
+﻿using KPI.ApplicationService.KpiModule.Implements;
+using KPI.ApplicationService.KPIModule.Abstract;
 using KPI.ApplicationService.KPIModule.Dtos.KpiAssignmentDto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,9 +24,16 @@ namespace KPI.API.Controllers
         {
             var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
             var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "User";
-
-            var result = await _assignmentService.AssignItemAsync(dto, userId, role);
-            return Ok(result);
+            try
+            {
+                var result = await _assignmentService.AssignItemAsync(dto, userId, role);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // lỗi nghiệp vụ, FE sẽ nhận được status 400 + message
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("assign-template")]
@@ -72,6 +80,25 @@ namespace KPI.API.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+
+        #region Export Excel
+        [HttpGet("assignments/export")]
+        public async Task<IActionResult> ExportAssignment([FromQuery] int? unitId, [FromQuery] int? userId, [FromQuery] int year)
+        {
+            var fileBytes = await _assignmentService.ExportAssignmentToExcelAsync(unitId, userId, year);
+
+            string fileName = userId.HasValue
+                ? $"KPI_User_{userId}_{year}.xlsx"
+                : $"KPI_Unit_{unitId}_{year}.xlsx";
+
+            return File(fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
+        #endregion
+
         [HttpPost("self-evaluate")]
         public async Task<IActionResult> SelfEvaluate([FromBody] SelfEvaluateDto dto)
         {
@@ -112,6 +139,35 @@ namespace KPI.API.Controllers
                 return NotFound();
             }
 
+            return Ok(result);
+        }
+
+        //tất cả Assignment trong một Unit
+        [HttpGet("unit/{unitId}/{year}")]
+        public async Task<IActionResult> GetAssignmentsByUnit(int unitId, int year)
+        {
+            var assignments = await _assignmentService.GetAssignmentsByUnitAsync(unitId, year);
+            return Ok(assignments);
+        }
+
+        // Get  tất cả Assignment của member thuộc quyền tôi
+        [HttpGet("unit-members/{year}")]
+        public async Task<IActionResult> GetAssignmentsByUnitMembers(int year)
+        {
+            var userIdClaim = User.FindFirst("id")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+
+            int currentUserId = int.Parse(userIdClaim);
+
+            var assignments = await _assignmentService.GetAssignmentsByUnitMembersAsync(currentUserId, year);
+            return Ok(assignments);
+        }
+
+        // Get  tất cả Assignment của trưởng đơn vị trong một Unit
+        [HttpGet("units/{year}")]
+        public async Task<IActionResult> GetUnitAssignments(int year)
+        {
+            var result = await _assignmentService.GetUnitAssignmentsAsync(year);
             return Ok(result);
         }
 
