@@ -67,7 +67,6 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         //Lấy các assignment của đơn vị 
 
         Task<List<UnitAssignmentDetailsDto>> GetUnitAssignmentsAsync(int year);
-
         #endregion
 
         #region Approval
@@ -91,9 +90,18 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<byte[]> ExportTemplateToExcelAsync(int? templateId);
         #endregion
 
-        #region
-        Task<CreateKpiViolationDto> CreateViolationAsync(CreateKpiViolationDto dto);
-
+        #region Violation
+        Task<KPIViolation> CreateViolationAsync(CreateKpiViolationDto dto);
+        Task<ViolationCategoryDto> CreateViolationCategory(CreateKpiViolationCateDto dto);
+        Task<ViolationCategoryDto?> GetViolationCategoryById(int id);
+        Task<bool> DeleteViolationCategory(int id);
+        Task<ViolationLevelDto> CreateViolationLevel(CreateKpiViolationLevelDto dto);
+        Task<IEnumerable<ViolationLevelDto>> GetAllViolationLevel();
+        Task<IEnumerable<ViolationLevelDto>> GetViolationLevelByCategoryId(int categoryId);
+        public IEnumerable<ViolationCategoryDto> GetAllViolationCategoryWithLevels();
+        Task<ViolationSummaryResultDto> CalculateUserViolation(int userId);
+        Task<List<KPIViolation>> GetViolationsByUserIdAsync(int userId);
+        Task<List<KpiViolationCore>> GetAllTotalDeductions();
 
         #endregion
     }

@@ -9,9 +9,9 @@ namespace KPI.ApplicationService.KPIModule.Dtos.ViolationDto
     public class CreateKpiViolationDto
     {
         public int UserId { get; set; }
-        public string ViolationType { get; set; } = null!;
+        public int UnitId { get;set; }
+        public int CategoryId { get; set; } 
         public int ViolationCount { get; set; }
-        public float DeductionScore { get; set; }
         public DateTime ViolationDate { get; set; }
     }
 }
