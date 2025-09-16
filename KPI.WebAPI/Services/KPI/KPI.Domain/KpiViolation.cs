@@ -6,19 +6,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace KPI.Domain
-{
-    [Table("KpiViolation")]
-    public class KPIViolation
+    namespace KPI.Domain
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-        public int UserId { get; set; }
-        [Required, MaxLength(100)]
-        public string ViolationType { get; set; } = null!;
-        public int ViolationCount { get; set; }
-        public float DeductionScore { get; set; }
-        public DateTime ViolationDate { get; set; }
+        [Table("KpiViolation")]
+        public class KPIViolation
+        {
+            [Key]
+            [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+            public int Id { get; set; }
+            public int UserId { get; set; }
+            public int UnitId { get; set; }
+            public int CategoryId { get; set; } 
+            public int ViolationCount { get; set; }
+            public float DeductionScore { get; set; }
+            public DateTime ViolationDate { get; set; }
+        }
     }
-}

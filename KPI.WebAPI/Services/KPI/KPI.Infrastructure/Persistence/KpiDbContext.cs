@@ -22,6 +22,9 @@ namespace KPI.Infrastructure.Persistence
         public DbSet<KPIScore> KpiScores { get; set; }
         public DbSet<KPIViolation> KpiViolations { get; set; }
         public DbSet<ApprovalLog> ApprovalLogs { get; set; }
+        public DbSet<KpiViolationCategory> KpiViolationCategories { get; set; }
+        public DbSet<KpiViolationLevel> KpiViolationLevels { get; set; }
+        public DbSet<KpiViolationCore> KpiViolationCores { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -54,6 +57,19 @@ namespace KPI.Infrastructure.Persistence
             modelBuilder.Entity<KPIViolation>()
                 .Property(v => v.ViolationDate)
                 .HasDefaultValueSql("GETDATE()");
+            // KpiViolation n - 1 KpiViolationCategory 
+            modelBuilder.Entity<KPIViolation>()
+                .HasOne<KpiViolationCategory>()
+                .WithMany()
+                .HasForeignKey(kv => kv.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // KpiViolationLevel n - 1 KpiViolationCategory
+            modelBuilder.Entity<KpiViolationLevel>()
+                .HasOne<KpiViolationCategory>()
+                .WithMany()
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }

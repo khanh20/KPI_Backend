@@ -129,7 +129,7 @@ namespace KPI.API.Controllers
 
             return Ok(result);
         }
-        [HttpPost("GetAllTotalScore")]
+        [HttpGet("GetAllTotalScore")]
         public async Task<IActionResult> GetAllKpiScores()
         {
             var result = await _assignmentService.GetAllKpiScores();
