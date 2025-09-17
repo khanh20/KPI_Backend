@@ -940,6 +940,119 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return result;
         }
 
+        //Tính toán KPI score cho đơn vị
+        public async Task<KpiTypeScoreResultDto> GetHeadOfUnitFinalScore(int headUserId)
+        {
+            // 1. Xác định đơn vị mà user này làm trưởng
+            var unit = await _context.Units
+            .Where(u => u.HeadOfUnitId == headUserId)
+            .Select(u => new { u.Id, u.Name })
+            .FirstOrDefaultAsync();
+
+            if (unit == null)
+            {
+                throw new Exception($"Không tìm thấy đơn vị cho headUserId = {headUserId}");
+            }
+
+
+            var unitId = unit.Id;
+
+            // 2. Lấy assignments của trưởng đơn vị (chỉ để tính điểm mục tiêu & chức năng cá nhân của họ)
+            var query = await _context.KpiAssignments
+                .Where(a => a.UserId == headUserId && a.UnitId == unitId && a.Status == "Evaluated")
+                .Join(
+                    _context.KpiItems,
+                    assignment => assignment.KpiItemId,
+                    item => item.Id,
+                    (assignment, item) => new { assignment, item }
+                )
+                .ToListAsync();
+
+            if (!query.Any())
+            {
+                return null;
+            }
+
+            var yearValue = query.First().assignment.Year;
+
+            // 3. Nhóm điểm theo KpiType (Mục tiêu, Chức năng)
+            var scores = query
+                .GroupBy(x => x.item.KpiType)
+                .Select(g => new KpiTypeScoreDto
+                {
+                    KpiType = g.Key,
+                    TotalComponentScore = g.Sum(x => x.assignment.ComponentScore)
+                })
+                .ToList();
+
+            // 4. Tính Tuân thủ của cả đơn vị
+            var unitViolation = await CalculateUnitViolation(unitId);
+            var compliance = unitViolation?.TotalDeduction ?? 0;
+
+            scores.Add(new KpiTypeScoreDto
+            {
+                KpiType = "Tuân thủ (Đơn vị)",
+                TotalComponentScore = compliance
+            });
+
+            // 5. Tính FinishTotal
+            var functional = scores.FirstOrDefault(x => x.KpiType == "Chức năng")?.TotalComponentScore ?? 0;
+            var objective = scores.FirstOrDefault(x => x.KpiType == "Mục tiêu")?.TotalComponentScore ?? 0;
+            var complianceScore = compliance;
+
+            var final = objective + functional - complianceScore;
+
+            return new KpiTypeScoreResultDto
+            {
+                UserId = headUserId,
+                UnitId = unitId,
+                Year = yearValue,
+                ScoresByType = scores,
+                FinishTotal = final
+            };
+        }
+
+        //Lưu điểm KPI của trưởng đơn vị vào bảng KPIScore
+        public async Task SaveHeadOfUnitFinalScore(int headUserId)
+        {
+            var result = await GetHeadOfUnitFinalScore(headUserId);
+            if (result == null) return;
+
+            var scoreEntity = new KPIScore
+            {
+                UserId = result.UserId,
+                UnitId = result.UnitId,
+                Year = result.Year,
+                TotalFunctionalScore = result.ScoresByType.FirstOrDefault(x => x.KpiType == "Chức năng")?.TotalComponentScore ?? 0,
+                TotalObjectiveScore = result.ScoresByType.FirstOrDefault(x => x.KpiType == "Mục tiêu")?.TotalComponentScore ?? 0,
+                TotalComplianceScore = result.ScoresByType.FirstOrDefault(x => x.KpiType == "Tuân thủ (Đơn vị)")?.TotalComponentScore ?? 0,
+                FinalScore = result.FinishTotal,
+                Status = 1 
+            };
+
+            
+            var existing = await _context.KpiScores
+                .FirstOrDefaultAsync(x => x.UserId == scoreEntity.UserId
+                                       && x.UnitId == scoreEntity.UnitId
+                                       && x.Year == scoreEntity.Year);
+
+            if (existing != null)
+            {
+                existing.TotalFunctionalScore = scoreEntity.TotalFunctionalScore;
+                existing.TotalObjectiveScore = scoreEntity.TotalObjectiveScore;
+                existing.TotalComplianceScore = scoreEntity.TotalComplianceScore;
+                existing.FinalScore = scoreEntity.FinalScore;
+                existing.Status = scoreEntity.Status;
+            }
+            else
+            {
+                await _context.KpiScores.AddAsync(scoreEntity);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+
 
         //Get  tất cả Assignment trong một Unit
         public async Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitAsync(int unitId, int year)
@@ -1319,32 +1432,54 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
 
         #region Violation
+        //Tạo hoặc Update
         public async Task<KPIViolation> CreateViolationAsync(CreateKpiViolationDto dto)
         {
-            var violation = new KPIViolation
-            {
-                UserId = dto.UserId,
-                UnitId = dto.UnitId,
-                CategoryId = dto.CategoryId,
-                ViolationCount = dto.ViolationCount,
-                ViolationDate = dto.ViolationDate
-            };
+            // Tìm record violation đã tồn tại
+            var violation = await _context.KpiViolations
+                .FirstOrDefaultAsync(v => v.UserId == dto.UserId && v.CategoryId == dto.CategoryId);
 
-            _context.KpiViolations.Add(violation);
+            if (violation == null)
+            {
+                // Nếu chưa có thì tạo mới
+                violation = new KPIViolation
+                {
+                    UserId = dto.UserId,
+                    UnitId = dto.UnitId,
+                    CategoryId = dto.CategoryId,
+                    ViolationCount = dto.ViolationCount,
+                    ViolationDate = dto.ViolationDate
+                };
+
+                _context.KpiViolations.Add(violation);
+            }
+            else
+            {
+                // Nếu đã có thì update lại count & ngày vi phạm
+                violation.ViolationCount = dto.ViolationCount;
+                violation.ViolationDate = dto.ViolationDate;
+            }
+
+            // Lấy level để tính deductionScore
+            var levels = await _context.KpiViolationLevels
+                .Where(l => l.CategoryId == dto.CategoryId)
+                .OrderByDescending(l => l.ViolationCount)
+                .ToListAsync();
+
+            var matchedLevel = levels
+                .FirstOrDefault(l => l.ViolationCount == violation.ViolationCount)
+                ?? levels.FirstOrDefault(l => l.ViolationCount <= violation.ViolationCount);
+
+            violation.DeductionScore = matchedLevel?.MaxDeduction ?? 0;
+
             await _context.SaveChangesAsync();
+
+            // Gọi hàm cập nhật tổng hợp nếu bạn vẫn cần summary
             await SaveUserViolationSummary(dto.UserId, dto.UnitId);
 
-            return new KPIViolation
-            {
-                Id = violation.Id,
-                UserId = violation.UserId,
-                UnitId = violation.UnitId,
-                CategoryId = violation.CategoryId,
-                ViolationCount = violation.ViolationCount,
-                DeductionScore = violation.DeductionScore,
-                ViolationDate = violation.ViolationDate
-            };
+            return violation;
         }
+
         public async Task<ViolationCategoryDto> CreateViolationCategory(CreateKpiViolationCateDto dto)
         {
             var entity = new KpiViolationCategory
@@ -1571,7 +1706,57 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return violations;
         }
 
-        
+        //Tính KPI đơn vị 
+        public async Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId)
+        {
+            // Lấy unit trước
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return null;
+
+            // Lấy tất cả violation trong unit
+            var grouped = await _context.KpiViolations
+                .Where(v => v.UnitId == unitId)
+                .GroupBy(v => v.CategoryId)
+                .Select(g => new
+                {
+                    CategoryId = g.Key,
+                    AvgDeduction = g.Average(x => x.DeductionScore),
+                    TotalUsers = g.Select(x => x.UserId).Distinct().Count()
+                })
+                .ToListAsync();
+
+            var categoryIds = grouped.Select(g => g.CategoryId).ToList();
+
+            var categories = await _context.KpiViolationCategories
+                .Where(c => categoryIds.Contains(c.Id))
+                .ToListAsync();
+
+            var result = grouped.Select(g =>
+            {
+                var category = categories.FirstOrDefault(c => c.Id == g.CategoryId);
+
+                // Tính điểm KPI vi phạm của unit cho từng category
+                float unitCategoryScore = ((g.AvgDeduction - 5) / 1f) * 2f;
+
+                return new UnitSumViolationDto
+                {
+                    CategoryId = g.CategoryId,
+                    CategoryName = category?.Name,
+                    AverageDeduction = g.AvgDeduction,
+                    TotalComponent = unitCategoryScore
+                };
+            }).ToList();
+
+            return new UnitViolationSummaryResultDto
+            {
+                UnitId = unitId,
+                UnitName = unit.Name,   // thêm UnitName
+                Details = result,
+                TotalDeduction = result.Sum(r => r.TotalComponent)
+            };
+        }
+
+
 
     }
 
