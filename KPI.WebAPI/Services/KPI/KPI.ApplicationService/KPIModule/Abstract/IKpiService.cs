@@ -113,7 +113,14 @@ namespace KPI.ApplicationService.KPIModule.Abstract
 
         //TÍnh KPI vi phạm đơn vị 
         Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId);
-        //
+
+        #endregion
+
+        #region ScroreRank
+        //THeo ID
+        Task<KpiRankResultDto?> GetKpiRank(int userId, int year);
+        //Theo UNitId
+        Task<List<KpiRankResultDto>> GetSubordinatesKpiRanks(int headUserId, int year);
 
         #endregion
     }
