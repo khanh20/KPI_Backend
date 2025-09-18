@@ -145,7 +145,14 @@ namespace KPI.API.Controllers
             var result = await _violationService.GetAllTotalDeductions();
             return Ok(result);
         }
-    
+        [HttpGet("getAllUserViolations")]
+        public async Task<IActionResult> GetAllUserViolation()
+        {
+            var result = await _violationService.GetAllUserViolations();
+            return Ok(result);
+        }
+
+
 
     }
 

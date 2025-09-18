@@ -102,6 +102,7 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<ViolationSummaryResultDto> CalculateUserViolation(int userId);
         Task<List<KPIViolation>> GetViolationsByUserIdAsync(int userId);
         Task<List<KpiViolationCore>> GetAllTotalDeductions();
+        Task<List<ViolationSummaryResultDto>> GetAllUserViolations();
 
         #endregion
     }

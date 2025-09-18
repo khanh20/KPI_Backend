@@ -8,6 +8,7 @@ namespace KPI.ApplicationService.KPIModule.Dtos.ViolationDto
 {
     public class ViolationSummaryResultDto
     {
+        public int UserId { get; set; } 
         public List<SumViolationDto> Details { get; set; }
         public int TotalDeduction { get; set; }
     }

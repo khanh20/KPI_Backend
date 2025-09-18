@@ -572,22 +572,26 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
         public async Task<List<KpiAssignmentDto>> GetAssignmentByUserAsync(int userId)
         {
-            return await _context.KpiAssignments
-                .Where(a => a.UserId == userId)
-                .Select(a => new KpiAssignmentDto
-                {
-                    Id = a.Id,
-                    UserId = a.UserId,
-                    UnitId = a.UnitId,
-                    KpiItemId = a.KpiItemId,
-                    //TargetValue = a.TargetValue,
-                    ContributionWeight = a.ContributionWeight,
-                    ActualResults = a.ActualResults,
-                    ComponentScore = a.ComponentScore,
-                    Status = a.Status,
-                    Year = a.Year
-                }).ToListAsync();
+            return await (from a in _context.KpiAssignments
+                          join k in _context.KpiItems on a.KpiItemId equals k.Id
+                          where a.UserId == userId
+                          select new KpiAssignmentDto
+                          {
+                              Id = a.Id,
+                              UserId = a.UserId,
+                              UnitId = a.UnitId,
+                              KpiItemId = a.KpiItemId,
+                              ContributionWeight = a.ContributionWeight,
+                              ActualResults = a.ActualResults,
+                              ComponentScore = a.ComponentScore,
+                              Status = a.Status,
+                              Year = a.Year, 
+                              KpiName = k.KpiName,
+                              KpiType = k.KpiType,
+                              DeadLine = k.DeadLine
+                          }).ToListAsync();
         }
+
 
         public async Task<List<KpiAssignmentDto>> GetAssignmentByUnitAsync(int unitId)
         {
@@ -1522,10 +1526,73 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
             return new ViolationSummaryResultDto
             {
+                UserId = userId,
                 Details = result,
                 TotalDeduction = (int)result.Sum(r => r.TotalComponent)
             };
         }
+        public async Task<List<ViolationSummaryResultDto>> GetAllUserViolations()
+        {
+            // Lấy tất cả vi phạm và nhóm theo UserId + CategoryId
+            var grouped = await _context.KpiViolations
+                .GroupBy(v => new { v.UserId, v.CategoryId })
+                .Select(g => new
+                {
+                    UserId = g.Key.UserId,
+                    CategoryId = g.Key.CategoryId,
+                    TotalCount = g.Sum(x => x.ViolationCount)
+                })
+                .ToListAsync();
+
+            var categoryIds = grouped.Select(g => g.CategoryId).Distinct().ToList();
+
+            var categories = await _context.KpiViolationCategories
+                .Where(c => categoryIds.Contains(c.Id))
+                .ToListAsync();
+
+            var levels = await _context.KpiViolationLevels
+                .Where(l => categoryIds.Contains(l.CategoryId))
+                .ToListAsync();
+
+            // Gom theo từng user 
+            var summaryByUser = grouped
+                .GroupBy(g => g.UserId)
+                .Select(g =>
+                {
+                    var details = g.Select(x =>
+                    {
+                        var category = categories.FirstOrDefault(c => c.Id == x.CategoryId);
+
+                        var level = levels
+                            .Where(l => l.CategoryId == x.CategoryId)
+                            .OrderByDescending(l => l.ViolationCount)
+                            .FirstOrDefault(l => l.ViolationCount == x.TotalCount)
+                            ?? levels
+                                .Where(l => l.CategoryId == x.CategoryId && l.ViolationCount <= x.TotalCount)
+                                .OrderByDescending(l => l.ViolationCount)
+                                .FirstOrDefault();
+
+                        return new SumViolationDto
+                        {
+                            CategoryId = x.CategoryId,
+                            CategoryName = category?.Name,
+                            TotalCount = x.TotalCount,
+                            TotalComponent = level?.MaxDeduction ?? 0
+                        };
+                    }).ToList();
+
+                    return new ViolationSummaryResultDto
+                    {
+                        UserId = g.Key,            
+                        Details = details,
+                        TotalDeduction = (int)details.Sum(d => d.TotalComponent)
+                    };
+                })
+                .ToList();
+
+            return summaryByUser;
+        }
+
         public async Task SaveUserViolationSummary(int userId, int unitId)
         {
             // Gọi hàm tính toán
