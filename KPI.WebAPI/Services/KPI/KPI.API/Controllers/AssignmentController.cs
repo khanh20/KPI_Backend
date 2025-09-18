@@ -192,6 +192,5 @@ namespace KPI.API.Controllers
             await _assignmentService.SaveHeadOfUnitFinalScore(headUserId);
             return Ok(new { Message = "Đã lưu KPI score của trưởng đơn vị." });
         }
-
     }
 }

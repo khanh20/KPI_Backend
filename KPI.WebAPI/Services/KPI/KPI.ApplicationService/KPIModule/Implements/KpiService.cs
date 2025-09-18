@@ -642,22 +642,25 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
         public async Task<List<KpiAssignmentDto>> GetAllAssigment()
         {
-            return await _context.KpiAssignments
-                .Select(a => new KpiAssignmentDto
-                {
-                    Id = a.Id,
-                    UserId = a.UserId,
-                    UnitId = a.UnitId,
-                    KpiItemId = a.KpiItemId,
-                    //TargetValue = a.TargetValue,
-                    ContributionWeight = a.ContributionWeight,
-                    ActualResults = a.ActualResults,
-                    ComponentScore = a.ComponentScore,
-                    Status = a.Status,
-                    Year = a.Year
-                })
-                .ToListAsync();
+            return await (from a in _context.KpiAssignments
+                          join k in _context.KpiItems on a.KpiItemId equals k.Id
+                          select new KpiAssignmentDto
+                          {
+                              Id = a.Id,
+                              UserId = a.UserId,
+                              UnitId = a.UnitId,
+                              KpiItemId = a.KpiItemId,
+                              ContributionWeight = a.ContributionWeight,
+                              ActualResults = a.ActualResults,
+                              ComponentScore = a.ComponentScore,
+                              Status = a.Status,
+                              Year = a.Year,
+                              KpiName = k.KpiName,
+                              KpiType = k.KpiType,
+                              DeadLine = k.DeadLine,
+                          }).ToListAsync();
         }
+
 
 
         public async Task<List<KPIAssignment>> SelfEvaluate(int userId, SelfEvaluateDto dto)
@@ -1431,6 +1434,11 @@ namespace KPI.ApplicationService.KpiModule.Implements
         //Tạo hoặc Update
         public async Task<KPIViolation> CreateViolationAsync(CreateKpiViolationDto dto)
         {
+            // Kiểm tra UnitId tồn tại
+            var unitExists = await _context.Units.AnyAsync(u => u.Id == dto.UnitId);
+            if (!unitExists)
+                throw new ArgumentException($"UnitId {dto.UnitId} không tồn tại trong database.");
+
             // Tìm record violation đã tồn tại
             var violation = await _context.KpiViolations
                 .FirstOrDefaultAsync(v => v.UserId == dto.UserId && v.CategoryId == dto.CategoryId);
@@ -1475,6 +1483,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
             return violation;
         }
+
 
         public async Task<ViolationCategoryDto> CreateViolationCategory(CreateKpiViolationCateDto dto)
         {
