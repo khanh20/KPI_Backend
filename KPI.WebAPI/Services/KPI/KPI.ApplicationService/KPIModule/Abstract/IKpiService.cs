@@ -59,6 +59,12 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<KpiTypeScoreResultDto> GetTotalComponentScoreByUser(int userId);
         Task<List<KpiTypeScoreResultDto>> GetAllKpiScores();
 
+        //Tinh KPI đơn vị
+        Task<KpiTypeScoreResultDto> GetHeadOfUnitFinalScore(int headUserId);
+
+        //Lưu KPiddonw vị
+        Task SaveHeadOfUnitFinalScore(int headUserId);
+
         //Lấy tất cả assignment của Unit
         Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitAsync(int unitId, int year);
         //Lấy các assignment của nhân viên trong đơn vị mình
@@ -67,6 +73,8 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         //Lấy các assignment của đơn vị 
 
         Task<List<UnitAssignmentDetailsDto>> GetUnitAssignmentsAsync(int year);
+
+
         #endregion
 
         #region Approval
@@ -103,6 +111,17 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         Task<List<KPIViolation>> GetViolationsByUserIdAsync(int userId);
         Task<List<KpiViolationCore>> GetAllTotalDeductions();
         Task<List<ViolationSummaryResultDto>> GetAllUserViolations();
+
+        //TÍnh KPI vi phạm đơn vị 
+        Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId);
+
+        #endregion
+
+        #region ScroreRank
+        //THeo ID
+        Task<KpiRankResultDto?> GetKpiRank(int userId, int year);
+        //Theo UNitId
+        Task<List<KpiRankResultDto>> GetSubordinatesKpiRanks(int headUserId, int year);
 
         #endregion
     }

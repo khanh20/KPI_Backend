@@ -508,7 +508,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
             if (!items.Any()) throw new Exception("No KPI items in template");
 
-            string status =  "Assigned";
+            string status = "Assigned";
 
             var assignments = items.Select(item => new KPIAssignment
             {
@@ -699,7 +699,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
         {
             if (assignments == null || assignments.Count == 0) return;
 
-            
+
             var kpiItems = _context.KpiItems.ToList();
             // lấy assignmentId ở trên hàm SelfEvaluate để tính điểm KPI
             var assignmentToEvaluate = assignments
@@ -861,7 +861,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                     item => item.Id,
                     (assignment, item) => new { assignment, item }
                 )
-              
+
                 .GroupBy(x => new { x.assignment.UserId, x.assignment.UnitId, x.item.KpiType, x.assignment.Year })
                 .Select(g => new
                 {
@@ -944,6 +944,111 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return result;
         }
 
+        //Tính toán KPI score cho đơn vị
+        public async Task<KpiTypeScoreResultDto> GetHeadOfUnitFinalScore(int headUserId)
+        {
+            // 1. Xác định đơn vị mà user này làm trưởng
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.HeadOfUnitId == headUserId);
+            if (unit == null) return null;
+
+            var unitId = unit.Id;
+
+            // 2. Lấy assignments của trưởng đơn vị (chỉ để tính điểm mục tiêu & chức năng cá nhân của họ)
+            var query = await _context.KpiAssignments
+                .Where(a => a.UserId == headUserId && a.UnitId == unitId && a.Status == "Evaluated")
+                .Join(
+                    _context.KpiItems,
+                    assignment => assignment.KpiItemId,
+                    item => item.Id,
+                    (assignment, item) => new { assignment, item }
+                )
+                .ToListAsync();
+
+            if (!query.Any())
+            {
+                return null;
+            }
+
+            var yearValue = query.First().assignment.Year;
+
+            // 3. Nhóm điểm theo KpiType (Mục tiêu, Chức năng)
+            var scores = query
+                .GroupBy(x => x.item.KpiType)
+                .Select(g => new KpiTypeScoreDto
+                {
+                    KpiType = g.Key,
+                    TotalComponentScore = g.Sum(x => x.assignment.ComponentScore)
+                })
+                .ToList();
+
+            // 4. Tính Tuân thủ của cả đơn vị
+            var unitViolation = await CalculateUnitViolation(unitId);
+            var compliance = unitViolation?.TotalDeduction ?? 0;
+
+            scores.Add(new KpiTypeScoreDto
+            {
+                KpiType = "Tuân thủ (Đơn vị)",
+                TotalComponentScore = compliance
+            });
+
+            // 5. Tính FinishTotal
+            var functional = scores.FirstOrDefault(x => x.KpiType == "Chức năng")?.TotalComponentScore ?? 0;
+            var objective = scores.FirstOrDefault(x => x.KpiType == "Mục tiêu")?.TotalComponentScore ?? 0;
+            var complianceScore = compliance;
+
+            var final = objective + functional - complianceScore;
+
+            return new KpiTypeScoreResultDto
+            {
+                UserId = headUserId,
+                UnitId = unitId,
+                Year = yearValue,
+                ScoresByType = scores,
+                FinishTotal = final
+            };
+        }
+
+        //Lưu điểm KPI của trưởng đơn vị vào bảng KPIScore
+        public async Task SaveHeadOfUnitFinalScore(int headUserId)
+        {
+            var result = await GetHeadOfUnitFinalScore(headUserId);
+            if (result == null) return;
+
+            var scoreEntity = new KPIScore
+            {
+                UserId = result.UserId,
+                UnitId = result.UnitId,
+                Year = result.Year,
+                TotalFunctionalScore = result.ScoresByType.FirstOrDefault(x => x.KpiType == "Chức năng")?.TotalComponentScore ?? 0,
+                TotalObjectiveScore = result.ScoresByType.FirstOrDefault(x => x.KpiType == "Mục tiêu")?.TotalComponentScore ?? 0,
+                TotalComplianceScore = result.ScoresByType.FirstOrDefault(x => x.KpiType == "Tuân thủ (Đơn vị)")?.TotalComponentScore ?? 0,
+                FinalScore = result.FinishTotal,
+                Status = 1
+            };
+
+
+            var existing = await _context.KpiScores
+                .FirstOrDefaultAsync(x => x.UserId == scoreEntity.UserId
+                                       && x.UnitId == scoreEntity.UnitId
+                                       && x.Year == scoreEntity.Year);
+
+            if (existing != null)
+            {
+                existing.TotalFunctionalScore = scoreEntity.TotalFunctionalScore;
+                existing.TotalObjectiveScore = scoreEntity.TotalObjectiveScore;
+                existing.TotalComplianceScore = scoreEntity.TotalComplianceScore;
+                existing.FinalScore = scoreEntity.FinalScore;
+                existing.Status = scoreEntity.Status;
+            }
+            else
+            {
+                await _context.KpiScores.AddAsync(scoreEntity);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+
 
         //Get  tất cả Assignment trong một Unit
         public async Task<List<AssignmentDetailsDto>> GetAssignmentsByUnitAsync(int unitId, int year)
@@ -952,7 +1057,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 .Join(_context.KpiItems,
                     a => a.KpiItemId,
                     i => i.Id,
-                   (a, i) => new {a, i}
+                   (a, i) => new { a, i }
                 )
                 .Where(x => x.a.UnitId == unitId && x.a.Year == year)
                 .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status })
@@ -993,8 +1098,8 @@ namespace KPI.ApplicationService.KpiModule.Implements
                       a => a.KpiItemId,
                       i => i.Id,
                       (a, i) => new { a, i })
-                .Where(x =>  x.a.UnitId == unit.Id && x.a.Year == year)
-                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status})
+                .Where(x => x.a.UnitId == unit.Id && x.a.Year == year && x.a.UserId != unit.HeadOfUnitId)
+                .GroupBy(x => new { x.a.UserId, x.a.UnitId, x.a.Year, x.a.Status })
                 .Select(g => new AssignmentDetailsDto
                 {
                     UserId = g.Key.UserId,
@@ -1011,7 +1116,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                         Weight = x.i.Weight,
                         TargetValue = x.i.TargetValue,
                         CalculationFormula = x.i.CalculationFormula,
-                        KpiType     = x.i.KpiType,
+                        KpiType = x.i.KpiType,
                     }).ToList()
                 })
                 .ToListAsync();
@@ -1034,7 +1139,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 .Join(_context.KpiItems,
                     b => b.a.KpiItemId,
                     i => i.Id,
-                    (b, i) => new {b.a, b.u, i})
+                    (b, i) => new { b.a, b.u, i })
                 .Where(x => x.a.Year == year && x.a.UserId == x.u.HeadOfUnitId) // chỉ KPI đơn vị
                 .GroupBy(x => new { x.a.UnitId, x.u.Name, x.a.UserId, x.a.Year, x.a.Status })
                 .Select(g => new UnitAssignmentDetailsDto
@@ -1323,32 +1428,54 @@ namespace KPI.ApplicationService.KpiModule.Implements
 
 
         #region Violation
+        //Tạo hoặc Update
         public async Task<KPIViolation> CreateViolationAsync(CreateKpiViolationDto dto)
         {
-            var violation = new KPIViolation
-            {
-                UserId = dto.UserId,
-                UnitId = dto.UnitId,
-                CategoryId = dto.CategoryId,
-                ViolationCount = dto.ViolationCount,
-                ViolationDate = dto.ViolationDate
-            };
+            // Tìm record violation đã tồn tại
+            var violation = await _context.KpiViolations
+                .FirstOrDefaultAsync(v => v.UserId == dto.UserId && v.CategoryId == dto.CategoryId);
 
-            _context.KpiViolations.Add(violation);
+            if (violation == null)
+            {
+                // Nếu chưa có thì tạo mới
+                violation = new KPIViolation
+                {
+                    UserId = dto.UserId,
+                    UnitId = dto.UnitId,
+                    CategoryId = dto.CategoryId,
+                    ViolationCount = dto.ViolationCount,
+                    ViolationDate = dto.ViolationDate
+                };
+
+                _context.KpiViolations.Add(violation);
+            }
+            else
+            {
+                // Nếu đã có thì update lại count & ngày vi phạm
+                violation.ViolationCount = dto.ViolationCount;
+                violation.ViolationDate = dto.ViolationDate;
+            }
+
+            // Lấy level để tính deductionScore
+            var levels = await _context.KpiViolationLevels
+                .Where(l => l.CategoryId == dto.CategoryId)
+                .OrderByDescending(l => l.ViolationCount)
+                .ToListAsync();
+
+            var matchedLevel = levels
+                .FirstOrDefault(l => l.ViolationCount == violation.ViolationCount)
+                ?? levels.FirstOrDefault(l => l.ViolationCount <= violation.ViolationCount);
+
+            violation.DeductionScore = matchedLevel?.MaxDeduction ?? 0;
+
             await _context.SaveChangesAsync();
+
+            // Gọi hàm cập nhật tổng hợp nếu bạn vẫn cần summary
             await SaveUserViolationSummary(dto.UserId, dto.UnitId);
 
-            return new KPIViolation
-            {
-                Id = violation.Id,
-                UserId = violation.UserId,
-                UnitId = violation.UnitId,
-                CategoryId = violation.CategoryId,
-                ViolationCount = violation.ViolationCount,
-                DeductionScore = violation.DeductionScore,
-                ViolationDate = violation.ViolationDate
-            };
+            return violation;
         }
+
         public async Task<ViolationCategoryDto> CreateViolationCategory(CreateKpiViolationCateDto dto)
         {
             var entity = new KpiViolationCategory
@@ -1423,62 +1550,62 @@ namespace KPI.ApplicationService.KpiModule.Implements
         public IEnumerable<ViolationCategoryDto> GetAllViolationCategoryWithLevels()
         {
 
-                return _context.KpiViolationCategories
-                    .Select(c => new ViolationCategoryDto
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        TargetValue = c.TargetValue,
-                        CalculationFormula = c.CalculationFormula,
-                        Levels = _context.KpiViolationLevels
-                            .Where(l => l.CategoryId == c.Id)
-                            .Select(l => new ViolationLevelDto
-                            {
-                                Id = l.Id,
-                                CategoryId = l.CategoryId,
-                                MaxDeduction = l.MaxDeduction,
-                                ViolationCount = l.ViolationCount,
-                                Description = l.Description
-                            }).ToList()
-                    })
-                    .ToList();
-         }
+            return _context.KpiViolationCategories
+                .Select(c => new ViolationCategoryDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    TargetValue = c.TargetValue,
+                    CalculationFormula = c.CalculationFormula,
+                    Levels = _context.KpiViolationLevels
+                        .Where(l => l.CategoryId == c.Id)
+                        .Select(l => new ViolationLevelDto
+                        {
+                            Id = l.Id,
+                            CategoryId = l.CategoryId,
+                            MaxDeduction = l.MaxDeduction,
+                            ViolationCount = l.ViolationCount,
+                            Description = l.Description
+                        }).ToList()
+                })
+                .ToList();
+        }
 
         public async Task<ViolationCategoryDto?> GetViolationCategoryById(int id)
-{
-    return await _context.KpiViolationCategories
-        .Where(x => x.Id == id)
-        .Select(x => new ViolationCategoryDto
         {
-            Id = x.Id,
-            Name = x.Name,
-            TargetValue = x.TargetValue,
-            CalculationFormula = x.CalculationFormula,
-            Levels = _context.KpiViolationLevels
-                .Where(l => l.CategoryId == x.Id)
-                .Select(l => new ViolationLevelDto
+            return await _context.KpiViolationCategories
+                .Where(x => x.Id == id)
+                .Select(x => new ViolationCategoryDto
                 {
-                    Id = l.Id,
-                    CategoryId = l.CategoryId,
-                    ViolationCount = l.ViolationCount,
-                    MaxDeduction = l.MaxDeduction
+                    Id = x.Id,
+                    Name = x.Name,
+                    TargetValue = x.TargetValue,
+                    CalculationFormula = x.CalculationFormula,
+                    Levels = _context.KpiViolationLevels
+                        .Where(l => l.CategoryId == x.Id)
+                        .Select(l => new ViolationLevelDto
+                        {
+                            Id = l.Id,
+                            CategoryId = l.CategoryId,
+                            ViolationCount = l.ViolationCount,
+                            MaxDeduction = l.MaxDeduction
+                        })
+                        .ToList()
                 })
-                .ToList()
-        })
-        .FirstOrDefaultAsync();
-}
+                .FirstOrDefaultAsync();
+        }
 
         public async Task<bool> DeleteViolationCategory(int id)
         {
             var entity = await _context.KpiViolationCategories.FindAsync(id);
             if (entity == null)
             {
-                return false; 
+                return false;
             }
 
             _context.KpiViolationCategories.Remove(entity);
             await _context.SaveChangesAsync();
-            return true; 
+            return true;
         }
         public async Task<ViolationSummaryResultDto> CalculateUserViolation(int userId)
         {
@@ -1638,13 +1765,184 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return violations;
         }
 
-        
+        //Tính KPI đơn vị 
+        public async Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId)
+        {
+            // Lấy unit trước
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return null;
 
-    }
+            // Lấy tất cả violation trong unit
+            var grouped = await _context.KpiViolations
+                .Where(v => v.UnitId == unitId)
+                .GroupBy(v => v.CategoryId)
+                .Select(g => new
+                {
+                    CategoryId = g.Key,
+                    AvgDeduction = g.Average(x => x.DeductionScore),
+                    TotalUsers = g.Select(x => x.UserId).Distinct().Count()
+                })
+                .ToListAsync();
 
+            var categoryIds = grouped.Select(g => g.CategoryId).ToList();
 
+            var categories = await _context.KpiViolationCategories
+                .Where(c => categoryIds.Contains(c.Id))
+                .ToListAsync();
 
+            var result = grouped.Select(g =>
+            {
+                var category = categories.FirstOrDefault(c => c.Id == g.CategoryId);
+
+                // Tính điểm KPI vi phạm của unit cho từng category
+                float unitCategoryScore = ((g.AvgDeduction - 5) / 1f) * 2f;
+
+                return new UnitSumViolationDto
+                {
+                    CategoryId = g.CategoryId,
+                    CategoryName = category?.Name,
+                    AverageDeduction = g.AvgDeduction,
+                    TotalComponent = unitCategoryScore
+                };
+            }).ToList();
+
+            return new UnitViolationSummaryResultDto
+            {
+                UnitId = unitId,
+                UnitName = unit.Name,   // thêm UnitName
+                Details = result,
+                TotalDeduction = result.Sum(r => r.TotalComponent)
+            };
+        }
     #endregion
 
+    #region ScoreRank
+    public async Task<KpiRankResultDto?> GetKpiRank(int userId, int year)
+        {
+            var score = await _context.KpiScores
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.Year == year);
+
+            if (score == null) return null;
+
+            string rank;
+            string description;
+            float coefficient;
+
+            if (score.FinalScore > 120)
+            {
+                rank = "A";
+                description = "Hoàn thành xuất sắc";
+                coefficient = 1.3f;
+            }
+            else if (score.FinalScore > 100)
+            {
+                rank = "B";
+                description = "Hoàn thành tốt";
+                coefficient = 1.1f;
+            }
+            else if (score.FinalScore > 80)
+            {
+                rank = "C";
+                description = "Hoàn thành";
+                coefficient = 1.0f;
+            }
+            else if (score.FinalScore > 50)
+            {
+                rank = "D";
+                description = "Hoàn thành còn thiếu sót";
+                coefficient = 0.5f;
+            }
+            else
+            {
+                rank = "F";
+                description = "Không hoàn thành";
+                coefficient = 0.5f;
+            }
+
+            return new KpiRankResultDto
+            {
+                UserId = score.UserId,
+                UnitId = score.UnitId,
+                Year = score.Year,
+                FinalScore = score.FinalScore,
+                Rank = rank,
+                Description = description,
+                Coefficient = coefficient
+            };
+        }
+
+        //Get KPIRank của Thành viên
+        public async Task<List<KpiRankResultDto>> GetSubordinatesKpiRanks(int headUserId, int year)
+        {
+            // 1. Xác định đơn vị mà user này làm trưởng
+            var unit = await _context.Units
+                .FirstOrDefaultAsync(u => u.HeadOfUnitId == headUserId);
+
+            if (unit == null)
+                throw new Exception($"Không tìm thấy đơn vị cho headUserId = {headUserId}");
+
+            // 2. Lấy danh sách KPI Score của các thành viên trong unit (loại bỏ trưởng)
+            var subordinates = await _context.KpiScores
+                .Where(s => s.UnitId == unit.Id && s.UserId != headUserId && s.Year == year)
+                .ToListAsync();
+
+            // 3. Map sang DTO với logic rank đã có
+            var results = new List<KpiRankResultDto>();
+            foreach (var score in subordinates)
+            {
+                string rank;
+                string description;
+                float coefficient;
+
+                if (score.FinalScore > 120)
+                {
+                    rank = "A";
+                    description = "Hoàn thành xuất sắc";
+                    coefficient = 1.3f;
+                }
+                else if (score.FinalScore > 100)
+                {
+                    rank = "B";
+                    description = "Hoàn thành tốt";
+                    coefficient = 1.1f;
+                }
+                else if (score.FinalScore > 80)
+                {
+                    rank = "C";
+                    description = "Hoàn thành";
+                    coefficient = 1.0f;
+                }
+                else if (score.FinalScore > 50)
+                {
+                    rank = "D";
+                    description = "Hoàn thành còn thiếu sót";
+                    coefficient = 0.5f;
+                }
+                else
+                {
+                    rank = "F";
+                    description = "Không hoàn thành";
+                    coefficient = 0.5f;
+                }
+
+                results.Add(new KpiRankResultDto
+                {
+                    UserId = score.UserId,
+                    UnitId = score.UnitId,
+                    Year = score.Year,
+                    FinalScore = score.FinalScore,
+                    Rank = rank,
+                    Description = description,
+                    Coefficient = coefficient
+                });
+            }
+
+            return results;
+        }
+
+
+        #endregion
+
+    }
 }
 

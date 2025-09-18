@@ -154,6 +154,21 @@ namespace KPI.API.Controllers
 
 
 
+        /// <summary>
+        /// Lấy tổng hợp KPI vi phạm của 1 đơn vị (Unit)
+        /// </summary>
+        [HttpGet("unit/{unitId}")]
+        public async Task<ActionResult<UnitViolationSummaryResultDto>> GetUnitViolationSummary(int unitId)
+        {
+            var result = await _violationService.CalculateUnitViolation(unitId);
+            if (result == null || !result.Details.Any())
+            {
+                return NotFound(new { message = $"Không tìm thấy dữ liệu vi phạm cho Unit {unitId}" });
+            }
+
+            return Ok(result);
+        }
+
     }
 
 }

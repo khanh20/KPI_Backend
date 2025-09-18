@@ -171,6 +171,27 @@ namespace KPI.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Tính toán điểm KPI final của trưởng đơn vị theo headUserId
+        /// </summary>
+        [HttpGet("final-score/{headUserId}")]
+        public async Task<ActionResult<KpiTypeScoreResultDto>> GetHeadOfUnitFinalScore(int headUserId)
+        {
+            var result = await _assignmentService.GetHeadOfUnitFinalScore(headUserId);
+            if (result == null) return NotFound(new { Message = "Không tìm thấy đơn vị hoặc dữ liệu KPI." });
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lưu hoặc cập nhật điểm KPI của trưởng đơn vị vào DB
+        /// </summary>
+        [HttpPost("save/{headUserId}")]
+        public async Task<IActionResult> SaveHeadOfUnitFinalScore(int headUserId)
+        {
+            await _assignmentService.SaveHeadOfUnitFinalScore(headUserId);
+            return Ok(new { Message = "Đã lưu KPI score của trưởng đơn vị." });
+        }
 
     }
 }
