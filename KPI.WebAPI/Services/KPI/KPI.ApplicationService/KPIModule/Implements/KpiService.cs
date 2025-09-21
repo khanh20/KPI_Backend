@@ -9,16 +9,19 @@ using KPI.ApplicationService.KPIModule.Dtos.ViolationDto;
 using KPI.Domain;
 using KPI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
 
 namespace KPI.ApplicationService.KpiModule.Implements
 {
     public class KpiService : IKpiService
     {
         private readonly KpiDbContext _context;
+        private readonly HttpClient _httpClient;
 
-        public KpiService(KpiDbContext context)
+        public KpiService(KpiDbContext context, HttpClient httpClient)
         {
             _context = context;
+            _httpClient = httpClient;
         }
 
         //KPI Template
@@ -1765,12 +1768,15 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return violations;
         }
 
-        //Tính KPI đơn vị 
+        // Tính KPI đơn vị
         public async Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId)
         {
-            // Lấy unit trước
+            // Lấy unit
             var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
             if (unit == null) return null;
+
+            // Gọi sang Auth service để đếm tổng số user trong unit
+            int totalUsersInUnit = await GetUserCountAsync(unitId);
 
             // Lấy tất cả violation trong unit
             var grouped = await _context.KpiViolations
@@ -1779,8 +1785,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 .Select(g => new
                 {
                     CategoryId = g.Key,
-                    AvgDeduction = g.Average(x => x.DeductionScore),
-                    TotalUsers = g.Select(x => x.UserId).Distinct().Count()
+                    TotalDeduction = g.Sum(x => x.DeductionScore)
                 })
                 .ToListAsync();
 
@@ -1794,14 +1799,22 @@ namespace KPI.ApplicationService.KpiModule.Implements
             {
                 var category = categories.FirstOrDefault(c => c.Id == g.CategoryId);
 
-                // Tính điểm KPI vi phạm của unit cho từng category
-                float unitCategoryScore = ((g.AvgDeduction - 5) / 1f) * 2f;
+                // Tính deduction trung bình trên tổng số user trong unit
+                float avgDeduction = totalUsersInUnit > 0
+                    ? (float)g.TotalDeduction / totalUsersInUnit
+                    : 0;
+
+                float unitCategoryScore = 0;
+                if (avgDeduction > 5)
+                {
+                    unitCategoryScore = ((avgDeduction - 5) / 1f) * 2f;
+                }
 
                 return new UnitSumViolationDto
                 {
                     CategoryId = g.CategoryId,
                     CategoryName = category?.Name,
-                    AverageDeduction = g.AvgDeduction,
+                    AverageDeduction = avgDeduction,
                     TotalComponent = unitCategoryScore
                 };
             }).ToList();
@@ -1814,10 +1827,11 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 TotalDeduction = result.Sum(r => r.TotalComponent)
             };
         }
-    #endregion
 
-    #region ScoreRank
-    public async Task<KpiRankResultDto?> GetKpiRank(int userId, int year)
+        #endregion
+
+        #region ScoreRank
+        public async Task<KpiRankResultDto?> GetKpiRank(int userId, int year)
         {
             var score = await _context.KpiScores
                 .FirstOrDefaultAsync(x => x.UserId == userId && x.Year == year);
@@ -1940,6 +1954,15 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return results;
         }
 
+
+
+        public async Task<int> GetUserCountAsync(int unitId)
+        {
+            var response = await _httpClient.GetAsync($"http://localhost:5006/api/User/count?unitId={unitId}");
+            response.EnsureSuccessStatusCode();
+            var countString = await response.Content.ReadAsStringAsync();
+            return int.Parse(countString);
+        }
 
         #endregion
 

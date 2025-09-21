@@ -115,6 +115,9 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         //TÍnh KPI vi phạm đơn vị 
         Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId);
 
+
+        Task<int> GetUserCountAsync(int unitId);
+
         #endregion
 
         #region ScroreRank

@@ -21,6 +21,8 @@ builder.Services.AddDbContext<KpiDbContext>(options =>
 builder.Services.AddScoped<IKpiService, KpiService>();
 builder.Services.AddControllers();
 
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -30,6 +32,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
+
+builder.Services.AddHttpClient();
 
 
 builder.Services.AddEndpointsApiExplorer();

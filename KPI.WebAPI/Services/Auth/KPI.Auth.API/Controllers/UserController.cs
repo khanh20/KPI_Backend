@@ -4,6 +4,7 @@ using KPI.Auth.ApplicationService.AutheticationModule.Implements;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
 
@@ -133,6 +134,15 @@ namespace KPI.Auth.API.Controllers
             var users = await _userService.GetUsersByUnitId(unitId);
             return Ok(users);
         }
+
+        [HttpGet("count")]
+        public async Task<int> GetUserCount([FromQuery] int unitId)
+        {
+            if (unitId <= 0) return 0;
+            return await _userService.GetUserCount(unitId);
+        }
+
+
 
 
 
