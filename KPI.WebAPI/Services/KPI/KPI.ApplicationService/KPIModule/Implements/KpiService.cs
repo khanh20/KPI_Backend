@@ -1011,6 +1011,68 @@ namespace KPI.ApplicationService.KpiModule.Implements
             };
         }
 
+        // Tính toán KPI score cho đơn vị dựa trên UnitId
+        public async Task<KpiTypeScoreResultDto?> GetUnitFinalScore(int unitId)
+        {
+            // 1. Lấy thông tin đơn vị
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return null;
+
+            // 2. Lấy assignments của tất cả user trong đơn vị này
+            var query = await _context.KpiAssignments
+                .Where(a => a.UnitId == unitId && a.Status == "Evaluated")
+                .Join(
+                    _context.KpiItems,
+                    assignment => assignment.KpiItemId,
+                    item => item.Id,
+                    (assignment, item) => new { assignment, item }
+                )
+                .ToListAsync();
+
+            if (!query.Any())
+            {
+                return null;
+            }
+
+            var yearValue = query.First().assignment.Year;
+
+            // 3. Nhóm điểm theo KpiType (Mục tiêu, Chức năng)
+            var scores = query
+                .GroupBy(x => x.item.KpiType)
+                .Select(g => new KpiTypeScoreDto
+                {
+                    KpiType = g.Key,
+                    TotalComponentScore = g.Sum(x => x.assignment.ComponentScore)
+                })
+                .ToList();
+
+            // 4. Tính Tuân thủ của cả đơn vị (dùng lại hàm CalculateUnitViolation)
+            var unitViolation = await CalculateUnitViolation(unitId);
+            var compliance = unitViolation?.TotalDeduction ?? 0;
+
+            scores.Add(new KpiTypeScoreDto
+            {
+                KpiType = "Tuân thủ (Đơn vị)",
+                TotalComponentScore = compliance
+            });
+
+            // 5. Tính FinishTotal
+            var functional = scores.FirstOrDefault(x => x.KpiType == "Chức năng")?.TotalComponentScore ?? 0;
+            var objective = scores.FirstOrDefault(x => x.KpiType == "Mục tiêu")?.TotalComponentScore ?? 0;
+            var complianceScore = compliance;
+
+            var final = objective + functional - complianceScore;
+
+            return new KpiTypeScoreResultDto
+            {
+                UserId = unit.HeadOfUnitId, // vì đây là cho cả đơn vị, không gắn với 1 user
+                UnitId = unitId,
+                Year = yearValue,
+                ScoresByType = scores,
+                FinishTotal = final
+            };
+        }
+
         //Lưu điểm KPI của trưởng đơn vị vào bảng KPIScore
         public async Task SaveHeadOfUnitFinalScore(int headUserId)
         {

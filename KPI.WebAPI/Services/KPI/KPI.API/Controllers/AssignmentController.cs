@@ -183,6 +183,15 @@ namespace KPI.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("unit-final-score/{unitId}")]
+        public async Task<ActionResult<KpiTypeScoreResultDto>> GetUnitFinalScore(int unitId)
+        {
+            var result = await _assignmentService.GetUnitFinalScore(unitId);
+            if (result == null) return NotFound(new { Message = "Không tìm thấy đơn vị hoặc dữ liệu KPI." });
+
+            return Ok(result);
+        }
+
         /// <summary>
         /// Lưu hoặc cập nhật điểm KPI của trưởng đơn vị vào DB
         /// </summary>

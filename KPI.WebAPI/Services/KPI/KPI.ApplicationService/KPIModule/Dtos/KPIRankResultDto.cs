@@ -8,7 +8,7 @@ namespace KPI.ApplicationService.KPIModule.Dtos
 {
     public class KpiRankResultDto
     {
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
         public int UnitId { get; set; }
         public int Year { get; set; }
         public float FinalScore { get; set; }

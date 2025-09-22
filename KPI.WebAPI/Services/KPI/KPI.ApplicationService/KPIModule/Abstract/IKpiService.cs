@@ -62,6 +62,8 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         //Tinh KPI đơn vị
         Task<KpiTypeScoreResultDto> GetHeadOfUnitFinalScore(int headUserId);
 
+        Task<KpiTypeScoreResultDto?> GetUnitFinalScore(int unitId);
+
         //Lưu KPiddonw vị
         Task SaveHeadOfUnitFinalScore(int headUserId);
 

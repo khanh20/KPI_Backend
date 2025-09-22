@@ -152,6 +152,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                 FullName = user.FirstName + " " + user.LastName,
                 Address = user.Address ,
                 PhoneNumber = user.PhoneNumber,
+                UnitId = user.UnitId,
                 Token = GenerateJwtToken(user),
             };
             return result;

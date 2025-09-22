@@ -47,7 +47,7 @@ namespace KPI.Auth.API.Controllers
         /// </summary>
         /// <param name="input"></param>
         /// <returns></returns> 
-        [Authorize(Roles = "Admin, hieu truong")]
+        //[Authorize(Roles = "Admin, hieu truong")]
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetUserById(int userId)
         {
@@ -91,7 +91,7 @@ namespace KPI.Auth.API.Controllers
             var list = await _userService.GetAllUserRole();
             return Ok(list);
         }
-        [Authorize(Roles = "Admin, hieu truong")]
+        //[Authorize(Roles = "Admin, hieu truong")]
         [HttpGet("user-roles/{userId}")]
         public async Task<IActionResult> GetUserRoleById(int userId)
         {
