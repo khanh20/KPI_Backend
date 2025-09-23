@@ -4,6 +4,7 @@ using KPI.Auth.ApplicationService.AutheticationModule.Dtos.RoleDto;
 using KPI.Auth.ApplicationService.AutheticationModule.Dtos.UserDto;
 using KPI.Auth.Domain;
 using KPI.Auth.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Configuration;
@@ -151,6 +152,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                 FullName = user.FirstName + " " + user.LastName,
                 Address = user.Address ,
                 PhoneNumber = user.PhoneNumber,
+                UnitId = user.UnitId,
                 Token = GenerateJwtToken(user),
             };
             return result;
@@ -228,7 +230,11 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                                  .ToListAsync();
         }
 
-
+        public async Task<int> GetUserCount(int unitId)
+        {
+            var count = await _context.Users.CountAsync(u => u.UnitId == unitId);
+            return count;
+        }
 
     }
 }

@@ -9,16 +9,19 @@ using KPI.ApplicationService.KPIModule.Dtos.ViolationDto;
 using KPI.Domain;
 using KPI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
 
 namespace KPI.ApplicationService.KpiModule.Implements
 {
     public class KpiService : IKpiService
     {
         private readonly KpiDbContext _context;
+        private readonly HttpClient _httpClient;
 
-        public KpiService(KpiDbContext context)
+        public KpiService(KpiDbContext context, HttpClient httpClient)
         {
             _context = context;
+            _httpClient = httpClient;
         }
 
         //KPI Template
@@ -1011,6 +1014,68 @@ namespace KPI.ApplicationService.KpiModule.Implements
             };
         }
 
+        // Tính toán KPI score cho đơn vị dựa trên UnitId
+        public async Task<KpiTypeScoreResultDto?> GetUnitFinalScore(int unitId)
+        {
+            // 1. Lấy thông tin đơn vị
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return null;
+
+            // 2. Lấy assignments của tất cả user trong đơn vị này
+            var query = await _context.KpiAssignments
+                .Where(a => a.UnitId == unitId && a.Status == "Evaluated")
+                .Join(
+                    _context.KpiItems,
+                    assignment => assignment.KpiItemId,
+                    item => item.Id,
+                    (assignment, item) => new { assignment, item }
+                )
+                .ToListAsync();
+
+            if (!query.Any())
+            {
+                return null;
+            }
+
+            var yearValue = query.First().assignment.Year;
+
+            // 3. Nhóm điểm theo KpiType (Mục tiêu, Chức năng)
+            var scores = query
+                .GroupBy(x => x.item.KpiType)
+                .Select(g => new KpiTypeScoreDto
+                {
+                    KpiType = g.Key,
+                    TotalComponentScore = g.Sum(x => x.assignment.ComponentScore)
+                })
+                .ToList();
+
+            // 4. Tính Tuân thủ của cả đơn vị (dùng lại hàm CalculateUnitViolation)
+            var unitViolation = await CalculateUnitViolation(unitId);
+            var compliance = unitViolation?.TotalDeduction ?? 0;
+
+            scores.Add(new KpiTypeScoreDto
+            {
+                KpiType = "Tuân thủ (Đơn vị)",
+                TotalComponentScore = compliance
+            });
+
+            // 5. Tính FinishTotal
+            var functional = scores.FirstOrDefault(x => x.KpiType == "Chức năng")?.TotalComponentScore ?? 0;
+            var objective = scores.FirstOrDefault(x => x.KpiType == "Mục tiêu")?.TotalComponentScore ?? 0;
+            var complianceScore = compliance;
+
+            var final = objective + functional - complianceScore;
+
+            return new KpiTypeScoreResultDto
+            {
+                UserId = unit.HeadOfUnitId, // vì đây là cho cả đơn vị, không gắn với 1 user
+                UnitId = unitId,
+                Year = yearValue,
+                ScoresByType = scores,
+                FinishTotal = final
+            };
+        }
+
         //Lưu điểm KPI của trưởng đơn vị vào bảng KPIScore
         public async Task SaveHeadOfUnitFinalScore(int headUserId)
         {
@@ -1774,12 +1839,15 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return violations;
         }
 
-        //Tính KPI đơn vị 
+        // Tính KPI đơn vị
         public async Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId)
         {
-            // Lấy unit trước
+            // Lấy unit
             var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
             if (unit == null) return null;
+
+            // Gọi sang Auth service để đếm tổng số user trong unit
+            int totalUsersInUnit = await GetUserCountAsync(unitId);
 
             // Lấy tất cả violation trong unit
             var grouped = await _context.KpiViolations
@@ -1788,8 +1856,7 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 .Select(g => new
                 {
                     CategoryId = g.Key,
-                    AvgDeduction = g.Average(x => x.DeductionScore),
-                    TotalUsers = g.Select(x => x.UserId).Distinct().Count()
+                    TotalDeduction = g.Sum(x => x.DeductionScore)
                 })
                 .ToListAsync();
 
@@ -1803,14 +1870,22 @@ namespace KPI.ApplicationService.KpiModule.Implements
             {
                 var category = categories.FirstOrDefault(c => c.Id == g.CategoryId);
 
-                // Tính điểm KPI vi phạm của unit cho từng category
-                float unitCategoryScore = ((g.AvgDeduction - 5) / 1f) * 2f;
+                // Tính deduction trung bình trên tổng số user trong unit
+                float avgDeduction = totalUsersInUnit > 0
+                    ? (float)g.TotalDeduction / totalUsersInUnit
+                    : 0;
+
+                float unitCategoryScore = 0;
+                if (avgDeduction > 5)
+                {
+                    unitCategoryScore = ((avgDeduction - 5) / 1f) * 2f;
+                }
 
                 return new UnitSumViolationDto
                 {
                     CategoryId = g.CategoryId,
                     CategoryName = category?.Name,
-                    AverageDeduction = g.AvgDeduction,
+                    AverageDeduction = avgDeduction,
                     TotalComponent = unitCategoryScore
                 };
             }).ToList();
@@ -1823,10 +1898,11 @@ namespace KPI.ApplicationService.KpiModule.Implements
                 TotalDeduction = result.Sum(r => r.TotalComponent)
             };
         }
-    #endregion
 
-    #region ScoreRank
-    public async Task<KpiRankResultDto?> GetKpiRank(int userId, int year)
+        #endregion
+
+        #region ScoreRank
+        public async Task<KpiRankResultDto?> GetKpiRank(int userId, int year)
         {
             var score = await _context.KpiScores
                 .FirstOrDefaultAsync(x => x.UserId == userId && x.Year == year);
@@ -1949,6 +2025,15 @@ namespace KPI.ApplicationService.KpiModule.Implements
             return results;
         }
 
+
+
+        public async Task<int> GetUserCountAsync(int unitId)
+        {
+            var response = await _httpClient.GetAsync($"http://localhost:5006/api/User/count?unitId={unitId}");
+            response.EnsureSuccessStatusCode();
+            var countString = await response.Content.ReadAsStringAsync();
+            return int.Parse(countString);
+        }
 
         #endregion
 

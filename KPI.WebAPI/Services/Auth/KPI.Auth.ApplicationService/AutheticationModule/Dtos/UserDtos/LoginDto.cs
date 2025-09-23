@@ -16,5 +16,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Dtos.RoleDto
         public string Address { get; set; }
         public string Role { get; set; }
         public string Token { get; set; }
-    }
+
+        public int? UnitId { get; set; }
+        }
 }

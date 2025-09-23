@@ -14,7 +14,7 @@ namespace KPI.Domain
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
         public int UnitId { get; set; }
         public int Year { get; set; }
         public float TotalFunctionalScore {  get; set; }

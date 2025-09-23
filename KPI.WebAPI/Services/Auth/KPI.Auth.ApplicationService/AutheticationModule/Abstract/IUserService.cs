@@ -1,6 +1,7 @@
 ﻿using KPI.Auth.ApplicationService.AutheticationModule.Dtos.RoleDto;
 using KPI.Auth.ApplicationService.AutheticationModule.Dtos.UserDto;
 using KPI.Auth.Domain;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,5 +22,7 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Abstract
         Task<IEnumerable<UserRoleDto>> GetAllUserRole();
         Task<UserRoleDto?> GetUserRoleById(int userId);
         Task<IEnumerable<User>> GetUsersByUnitId(int unitId);
+
+        Task<int> GetUserCount( int unitId);
     }
 }

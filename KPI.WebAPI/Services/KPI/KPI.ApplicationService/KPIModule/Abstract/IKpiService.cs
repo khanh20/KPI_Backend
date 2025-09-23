@@ -62,6 +62,8 @@ namespace KPI.ApplicationService.KPIModule.Abstract
         //Tinh KPI đơn vị
         Task<KpiTypeScoreResultDto> GetHeadOfUnitFinalScore(int headUserId);
 
+        Task<KpiTypeScoreResultDto?> GetUnitFinalScore(int unitId);
+
         //Lưu KPiddonw vị
         Task SaveHeadOfUnitFinalScore(int headUserId);
 
@@ -115,6 +117,9 @@ namespace KPI.ApplicationService.KPIModule.Abstract
 
         //TÍnh KPI vi phạm đơn vị 
         Task<UnitViolationSummaryResultDto> CalculateUnitViolation(int unitId);
+
+
+        Task<int> GetUserCountAsync(int unitId);
 
         #endregion
 
