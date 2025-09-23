@@ -763,7 +763,13 @@ namespace KPI.ApplicationService.KpiModule.Implements
             {
                 float score = 0;
 
-                if (x.Assignment.ContributionWeight > 0)
+                if (x.Assignment.ContributionWeight == 100)
+                {
+                    score = (x.TargetValue > 0)
+                        ? (x.Assignment.ActualResults / x.TargetValue) * x.Weight
+                        : 0;
+                }
+                else if (x.Assignment.ContributionWeight > 0)
                 {
                     float adjustFactor = 1;
                     if (needNormalize && adjustFactorByType.ContainsKey(x.ItemType))
@@ -776,15 +782,14 @@ namespace KPI.ApplicationService.KpiModule.Implements
                         ? (x.Assignment.ActualResults / x.TargetValue) * finishWeight
                         : 0;
                 }
-                else
+                else 
                 {
-                    score = (x.TargetValue > 0)
-                        ? (x.Assignment.ActualResults / x.TargetValue) * x.Weight
-                        : 0;
+                    score = 0;
                 }
 
                 x.Assignment.ComponentScore = score;
             }
+
 
         }
 
