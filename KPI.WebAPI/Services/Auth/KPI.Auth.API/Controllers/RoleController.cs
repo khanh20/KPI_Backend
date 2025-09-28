@@ -1,21 +1,22 @@
 ﻿using KPI.Auth.ApplicationService.AutheticationModule.Abstract;
 using KPI.Auth.ApplicationService.AutheticationModule.Dtos.RoleDto;
 using KPI.Auth.ApplicationService.AutheticationModule.Implements;
-using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using System;
+using KPI.Auth.Domain;
+using KPI.Shared.ApplicationService;
 using KPI.Shared.Constant.Common;
-using System.Collections.Generic;
 using KPI.Shared.Constant.Permission;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
 using System.Linq;
-using KPI.Auth.Domain;
+using System.Threading.Tasks;
 
 namespace KPI.Auth.API.Controllers
 {
 
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin, hieu truong")]
+    [Authorize]
     public class RoleController : Controller
     {
         private readonly IRoleService _roleService;
@@ -31,6 +32,7 @@ namespace KPI.Auth.API.Controllers
         /// <returns></returns> 
         
         [HttpPost]
+        [AuthorizePermission("AddRole")]
         public async Task<IActionResult> CreateRole([FromBody] CreateRoleDto dto)
         {
             try
@@ -46,6 +48,7 @@ namespace KPI.Auth.API.Controllers
         }
         
         [HttpGet("{roleId}")]
+        [AuthorizePermission("GetRoleById")]
         public async Task<IActionResult> GetRoleById(int roleId)
         {
             var role = await _roleService.GetRoleById(roleId);

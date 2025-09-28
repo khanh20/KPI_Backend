@@ -159,13 +159,18 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
         }
         public string GenerateJwtToken(User user)
         {
+            var permissions = _context.RolePermissions
+            .Where(rp => rp.RoleId == user.RoleId)
+            .Select(rp => rp.PermissionKey)
+            .ToList();
             // 1. Tạo claims (thông tin sẽ lưu trong token)
             var claims = new[]
             {
             new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
             new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
             new Claim("id", user.Id.ToString()),
-            new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
+            new Claim(ClaimTypes.Role, user.Role?.Name ?? ""),
+            new Claim("permissions", string.Join(",", permissions))
         };
 
             // 2. Lấy secret key từ appsettings.json
