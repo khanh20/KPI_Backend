@@ -63,6 +63,7 @@ namespace KPI.Auth.API.Controllers
         /// <returns></returns> 
        
         [HttpGet("get-all-role")]
+        [AuthorizePermission("GetAllRole")]
         public async Task<IActionResult> GetAllRole([FromQuery] FilterDto input)
         {
             var roles = await _roleService.GetAllRole(input);
@@ -85,6 +86,7 @@ namespace KPI.Auth.API.Controllers
         /// <returns></returns> 
         
         [HttpPost("assign")]
+        [AuthorizePermission("AssignPermission")]
         public async Task<IActionResult> AssignPermission([FromBody] RolePermissionDto request)
         {
             try
@@ -134,6 +136,7 @@ namespace KPI.Auth.API.Controllers
         /// <returns></returns> 
         
         [HttpPost("remove")]
+        [AuthorizePermission("RemovePermission")]
         public async Task<IActionResult> RemovePermission([FromBody] RolePermissionDto request)
         {
             await _roleService.RemovePermissionFromRole(request.RoleId, request.Permissions);
@@ -164,6 +167,7 @@ namespace KPI.Auth.API.Controllers
         }
         
         [HttpDelete("delete-role")]
+        [AuthorizePermission("DeleteRole")]
         public async Task<IActionResult> DeleteRole(int roleId)
         {
             try
