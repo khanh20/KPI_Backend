@@ -35,7 +35,7 @@ def get_user_by_id(user_id: int):
     """Lấy thông tin chi tiết 1 nhân sự theo ID"""
     with engine_auth.connect() as conn:
         result = conn.execute(text("""
-            SELECT Id, UserName, Email, RoleId 
+            SELECT *
             FROM [User]
             WHERE Id = :user_id
         """), {"user_id": user_id})
@@ -43,12 +43,15 @@ def get_user_by_id(user_id: int):
 
 
 def search_users(keyword: str):
-    """Tìm kiếm nhân sự theo username hoặc email"""
+    """Tìm kiếm nhân sự theo username, email, firstname hoặc lastname"""
     with engine_auth.connect() as conn:
         result = conn.execute(text("""
-            SELECT Id, UserName, Email, RoleId
+            SELECT Id, UserName, Email, RoleId, FirstName, LastName
             FROM [User]
-            WHERE UserName LIKE :kw OR Email LIKE :kw
+            WHERE UserName LIKE :kw
+               OR Email LIKE :kw
+               OR FirstName LIKE :kw
+               OR LastName LIKE :kw
         """), {"kw": f"%{keyword}%"})
         return [dict(row) for row in result.mappings().all()]
 
@@ -59,12 +62,11 @@ def get_users_by_role(role_name: str):
         result = conn.execute(text("""
             SELECT 
                 u.Id,
-                u.UserName,
-                u.Email,
-                r.RoleName
+                u.FirstName + ' ' + u.LastName AS FullName,
+                r.Name 
             FROM [User] u
             INNER JOIN [Roles] r ON u.RoleId = r.Id
-            WHERE r.RoleName = :role_name
+            WHERE r.Name = :role_name
         """), {"role_name": role_name})
         
         return [dict(row) for row in result.mappings().all()]

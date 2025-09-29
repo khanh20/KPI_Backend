@@ -8,6 +8,7 @@ from .query import (
     search_users,
     get_users_by_role
 )
+from .guide import GUIDE_CONTENT,GUIDE_DETAILS, FAQ   # 👈 thêm import
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -46,14 +47,13 @@ tools = [
                 description="Lấy danh sách nhân sự theo vai trò",
                 parameters={
                     "type": "object",
-                    "properties": {"role": {"type": "string"}},
-                    "required": ["role"]
+                    "properties": {"role_name": {"type": "string"}},
+                    "required": ["role_name"]
                 }
             )
         ]
     )
 ]
-
 
 # Map tên hàm Gemini trả về → Python function thực tế
 FUNCTION_MAP = {
@@ -63,32 +63,52 @@ FUNCTION_MAP = {
     "search_users": search_users,
     "get_users_by_role": get_users_by_role
 }
+
 def format_result(result):
-    # Nếu là list object (danh sách user, role, ...)
-    if isinstance(result, list) and result:
-        if isinstance(result[0], dict):
-            # Nếu có field UserName thì coi như list user
-            if "UserName" in result[0]:
-                return format_users_table(result)
+    """
+    Định dạng kết quả trả về:
+    - Mỗi item bắt đầu bằng '- '
+    - Mỗi key: value trên một dòng
+    - Sau mỗi item, xuống dòng
+    """
 
-            # Còn lại -> in ra từng dict
-            return "\n\n".join(
-                [", ".join([f"{k}: {v}" for k, v in item.items()]) for item in result]
-            )
+    # Nếu là list rỗng
+    if isinstance(result, list) and not result:
+        return "Không có dữ liệu."
 
-    # Nếu chỉ 1 dict
+    # Nếu là list object (list các dict)
+    if isinstance(result, list) and isinstance(result[0], dict):
+        return "\n".join(
+            ["- " + ", ".join([f"{k}: {v}" for k, v in item.items()]) for item in result]
+        )
+
+    # Nếu là list giá trị thường
+    if isinstance(result, list):
+        return "\n".join(f"- {v}" for v in result)
+
+    # Nếu là dict
     if isinstance(result, dict):
-        return "\n".join([f"{k}: {v}" for k, v in result.items()])
+        return "\n".join(f"- {k}: {v}" for k, v in result.items())
 
-    # Nếu chỉ 1 giá trị đơn giản
-    return str(result)
+    # ép sang string
+    return f"- {str(result)}"
 
 
 def ask_gemini(user_question: str):
     # Bước 1: Gửi câu hỏi user cho Gemini
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=user_question,
+        contents=f"""
+        Bạn là trợ lý hỗ trợ cho web KPI.      
+        Đây là tài liệu hướng dẫn chi tiết:
+        {GUIDE_CONTENT} , {GUIDE_DETAILS}
+        Nhiệm vụ:
+        - Nếu câu hỏi liên quan tới dữ liệu (danh sách user, tìm kiếm, role, ...) thì dùng tool.
+        - Nếu câu hỏi liên quan đến cách sử dụng app (các bước đăng nhập, tạo KPI, phê duyệt, giao KPI, ...) thì trả lời trực tiếp dựa vào GUIDE_CONTENT & GUIDE_DETAILS & FAQ.
+        - Luôn trả lời bằng tiếng Việt, dễ hiểu.
+
+        Câu hỏi: {user_question}
+        """,
         config=types.GenerateContentConfig(
             temperature=0,
             tools=tools
@@ -110,19 +130,19 @@ def ask_gemini(user_question: str):
 
         # Bước 3: Thực thi hàm thật
         result = fn(**args) if args else fn()
+        formatted_result = format_result(result)  # format answers
 
         # Bước 4: Gửi lại kết quả cho Gemini để soạn câu trả lời
         follow_up = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=[
-                user_question,
-                types.Part.from_function_response(
-                    name=fn_name,
-                    response={"result": result}
-                )
-            ]
-        )
-        return getattr(follow_up, "text", "Không có phản hồi từ Gemini")
+            contents=f"""
+                Người dùng hỏi: {user_question}
+                Dữ liệu kết quả (đã format):
+                {formatted_result}
+                Hãy trả lời câu hỏi dựa trên dữ liệu trên, giữ nguyên định dạng dữ liệu khi cần.
+                """,
+        config=types.GenerateContentConfig(temperature=0)
+            )
+        return getattr(follow_up, "text", formatted_result)
 
-    # Nếu không có function_call → trả lời trực tiếp
     return getattr(response, "text", "Không có phản hồi từ Gemini")
