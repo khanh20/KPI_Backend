@@ -1,0 +1,21 @@
+# Bỏ cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bỏ virtual environment
+env/
+venv/
+ENV/
+
+# Bỏ file cấu hình IDE/Editor
+.vscode/
+.idea/
+
+# Bỏ file hệ điều hành
+.DS_Store
+Thumbs.db
+
+# Bỏ file môi trường
+.env
