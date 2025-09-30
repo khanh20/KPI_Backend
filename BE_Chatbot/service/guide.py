@@ -1,7 +1,7 @@
 # guide.py
 
 GUIDE_CONTENT = """
-# HƯỚNG DẪN SỬ DỤNG APP QUẢN LÝ KPI
+# HƯỚNG DẪN SỬ DỤNG Web QUẢN LÝ KPI Trường Đại học Xây dựng Hà nội
 
 ## 1. Đăng nhập
 - Mở ứng dụng.
