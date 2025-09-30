@@ -120,6 +120,9 @@ namespace KPI.Auth.ApplicationService.AutheticationModule.Implements
                     UserName = u.UserName,
                     RoleId = u.RoleId,
                     UnitId = u.UnitId,
+                    Email =u.Email,
+                    Address = u.Address,
+                    PhoneNumber = u.PhoneNumber,
                     Position = u.Position
                 }).ToListAsync();
         }
