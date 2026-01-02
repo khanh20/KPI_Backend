@@ -14,7 +14,7 @@ namespace KPI.Infrastructure.Persistence
         {
             var optionsBuilder = new DbContextOptionsBuilder<KpiDbContext>();
             // Hardcode tạm connection string
-            optionsBuilder.UseSqlServer("Server=THANHMOI\\SQLEXPRESS;Database=KPICoreDb;Trusted_Connection=True;Integrated Security=True;Pooling=False;Encrypt=True;Trust Server Certificate=True");
+            optionsBuilder.UseSqlServer("Server=THANH\\SQLEXPRESS;Database=KPICoreDb;Trusted_Connection=True;Integrated Security=True;Pooling=False;Encrypt=True;Trust Server Certificate=True");
 
             return new KpiDbContext(optionsBuilder.Options);
         }

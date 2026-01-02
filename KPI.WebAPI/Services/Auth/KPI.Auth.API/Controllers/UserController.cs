@@ -25,7 +25,7 @@ namespace KPI.Auth.API.Controllers
         /// </summary>
         /// <param name="input"></param>
         /// <returns></returns> 
-        [Authorize(Roles = "Admin, hieu truong")]
+        //[Authorize(Roles = "Admin, hieu truong")]
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto dto)
         {
